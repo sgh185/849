@@ -2,6 +2,8 @@
 # file(GLOB CATPassSrc "*.cpp")
 set(CATPassSrc 
   DynAnalysis.cpp
+  src/DynamicMemoryTracker.cpp
+  src/MemoryPoolTransformer.cpp
   src/Utils.cpp
   src/Configurations.cpp
 )
