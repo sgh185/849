@@ -1,0 +1,8 @@
+.vscode*
+passes/toolchain/catpass/
+passes/toolchain/build/
+passes/built_passes/
+*.ll
+*.dot
+*.ll.nv
+*.dot.nv
