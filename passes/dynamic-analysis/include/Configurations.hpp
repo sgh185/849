@@ -51,5 +51,9 @@ extern cl::opt<bool> ExitingOnInit;
 
 extern cl::opt<bool> Debug;
 
+extern Function *Malloc;
+
+extern Function *Free;
+
 #define DEBUG_INFO if (Debug) errs() 
 

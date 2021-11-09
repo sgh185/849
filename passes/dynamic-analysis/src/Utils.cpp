@@ -81,3 +81,24 @@ void Utils::InjectMetadata(
 
     return;
 }
+
+
+/*
+ * GetMethod
+ * 
+ * Utility to fetch a method and verify its validity
+ */
+Function *Utils::GetMethod(
+    Module *M,
+    const std::string Name
+)
+{
+    /*
+     * Fetch function with @Name from @M --- sanity
+     * check that the function exists
+     */ 
+    Function *F = M->getFunction(Name);
+    errs() << "Fetching " << Name << " ... \n";
+    assert(!!F && "Utils::GetMethod: Can't fetch!");
+    return F;
+}

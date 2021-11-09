@@ -16,6 +16,13 @@ struct CAT : public FunctionPass
         Utils::ExitOnInit();
 
 
+        /*
+         * Fetch malloc() and free()
+         */
+        Malloc = Utils::GetMethod(&M, "malloc");
+        Free = Utils::GetMethod(&M, "free");
+
+
         return false;
     }
 
@@ -46,7 +53,7 @@ struct CAT : public FunctionPass
 
 
 char CAT::ID = 0;
-static RegisterPass<CAT> X("dynamic-analysis", "849 -- Dynamic analysis");
+static RegisterPass<CAT> X("dynamic-analysis", "849 -- Dynamic memory analysis");
 
 static CAT* _PassMaker = NULL;
 static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,

@@ -23,4 +23,9 @@ namespace Utils
         Instruction *I
     );
 
+    Function *GetMethod(
+        Module *M,
+        const std::string Name
+    );
+
 }

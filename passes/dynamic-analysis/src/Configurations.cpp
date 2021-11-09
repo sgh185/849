@@ -12,3 +12,6 @@ cl::opt<bool> Debug(
     cl::desc("Debugging and print-outs")
 );
 
+Function *Malloc;
+
+Function *Free;
