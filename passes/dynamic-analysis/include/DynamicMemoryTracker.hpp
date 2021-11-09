@@ -31,6 +31,10 @@ public:
 
     void Dump(void);
 
+    std::unordered_set<CallInst *> GetTrackedAllocations(void);
+
+    std::unordered_set<CallInst *> GetTrackedDeallocations(void);
+    
 
 private:
 

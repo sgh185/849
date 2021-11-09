@@ -108,6 +108,18 @@ void DynamicMemoryTracker::Dump(void)
 }
 
 
+std::unordered_set<CallInst *> DynamicMemoryTracker::GetTrackedAllocations(void)
+{
+    return Allocations;
+}
+
+
+std::unordered_set<CallInst *> DynamicMemoryTracker::GetTrackedDeallocations(void)
+{
+    return Deallocations;
+}
+
+
 /*
  * ---------- Private Methods ----------
  */
