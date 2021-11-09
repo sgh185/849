@@ -6,3 +6,4 @@ passes/built_passes/
 *.dot
 *.ll.nv
 *.dot.nv
+ENV
