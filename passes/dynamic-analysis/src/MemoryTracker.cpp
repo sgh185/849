@@ -41,6 +41,11 @@ void MemoryTracker::Track(void)
             if (isa<StoreInst>(&I))
                 Stores.insert(cast<StoreInst>(&I));
 
+    for (auto &B : F)
+        for (auto &I : B)
+            if (isa<AllocaInst>(&I))
+                Allocas.insert(cast<AllocaInst>(&I));
+
 
     return;
 }

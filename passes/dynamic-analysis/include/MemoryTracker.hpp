@@ -26,6 +26,8 @@ public:
     std::unordered_set<LoadInst *> GetTrackedLoads(void);
 
     std::unordered_set<StoreInst *> GetTrackedStores(void);
+
+    std::unordered_set<AllocaInst *> GetTrackedAllocas(void);
     
 
 private:
@@ -46,6 +48,8 @@ private:
     std::unordered_set<LoadInst *> Loads;
 
     std::unordered_set<StoreInst *> Stores;
+
+    std::unordered_set<AllocaInst *> Allocas;
 
     
     /*
