@@ -1,13 +1,7 @@
-#include "Utils.hpp"
-
-enum DynMemoryKind
-{
-    Allocation=0,
-    Deallocation
-};
+#include "MemoryFunction.hpp"
 
 
-class DynamicMemoryTracker
+class MemoryTracker
 {
 
 public:
@@ -15,13 +9,7 @@ public:
     /*
      * Constructors
      */
-    DynamicMemoryTracker(Function &F);
-
-    DynamicMemoryTracker(
-        Function &F,
-        Function *AllocationFunction,
-        Function *DeallocationFunction
-    );
+    MemoryTracker(Function &F);
 
 
     /*
@@ -34,6 +22,10 @@ public:
     std::unordered_set<CallInst *> GetTrackedAllocations(void);
 
     std::unordered_set<CallInst *> GetTrackedDeallocations(void);
+
+    std::unordered_set<LoadInst *> GetTrackedLoads(void);
+
+    std::unordered_set<StoreInst *> GetTrackedStores(void);
     
 
 private:
@@ -43,29 +35,24 @@ private:
      */
     Function &F;
 
-    std::unordered_map<
-        DynMemoryKind,
-        Function *
-    > DynMemoryFunctionTable = {
-        {DynMemoryKind::Allocation, Malloc} , 
-        {DynMemoryKind::Deallocation, Free}
-    };
-
 
     /*
      * New analysis state
      */
-    
     std::unordered_set<CallInst *> Allocations;
 
     std::unordered_set<CallInst *> Deallocations;
+
+    std::unordered_set<LoadInst *> Loads;
+
+    std::unordered_set<StoreInst *> Stores;
 
     
     /*
      * Private methods
      */
     void _trackDynamicMemoryCalls(
-        DynMemoryKind DynMemoryFunction,
+        DynMemoryKind Kind,
         std::unordered_set<CallInst *> &TrackingList
     );
 
