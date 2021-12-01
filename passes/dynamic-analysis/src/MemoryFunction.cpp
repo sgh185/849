@@ -22,6 +22,8 @@
 namespace MemoryFunctions
 {
 
+bool SetupComplete = false;
+
 std::unordered_set<MemoryFunctionPackage *> AllMemoryFunctions = {};
 
 std::unordered_map<
@@ -68,6 +70,18 @@ void SetUpMemoryFunctions(Module *M)
 /*
  * -------------------- ProfilerFunctions --------------------
  */
+namespace ProfilerFunctions
+{
+
+bool SetupComplete;
+
+Function *TrackLoad = nullptr;
+
+Function *TrackStore = nullptr;
+
+Function *TrackAllocation = nullptr;
+
+Function *TrackDeallocation = nullptr;
 
 void ProfilerFunctions::SetUpProfilerFunctions(Module *M)
 {
@@ -81,12 +95,15 @@ void ProfilerFunctions::SetUpProfilerFunctions(Module *M)
     return;
 }
 
+}
+
+
 
 /*
  * ---------- Constructors ----------
  */
 MemoryFunctionPackage::MemoryFunctionPackage(
-    std::string FunctionName,
+    std::string Name,
     DynMemoryKind Kind,
     unsigned PointerToMemoryOpPos,
     unsigned AllocationSizeOpPos,
@@ -96,5 +113,5 @@ MemoryFunctionPackage::MemoryFunctionPackage(
     /* 
      * Fetch the function
      */
-    this->F = Utils::GetMethod(M, FunctionName);
+    this->F = Utils::GetMethod(M, Name);
 }

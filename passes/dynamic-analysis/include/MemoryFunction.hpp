@@ -45,6 +45,8 @@ public:
  */
 namespace MemoryFunctions
 {
+    extern bool SetupComplete;
+
     extern std::unordered_set<MemoryFunctionPackage *> AllMemoryFunctions;
 
     extern std::unordered_map<
@@ -66,6 +68,8 @@ namespace MemoryFunctions
  */
 namespace ProfilerFunctions
 {
+    extern bool SetupComplete;
+
     extern Function *TrackLoad;
 
     extern Function *TrackStore;

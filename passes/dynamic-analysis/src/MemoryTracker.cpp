@@ -59,6 +59,8 @@ void MemoryTracker::Dump(void)
      * Dump all allocations, deallocations, loads, stores, and allocas in @this->F
      */
 
+    errs() << "\n\n\n=== MemoryTracker::Dump for " << F.getName() << " ===\n";
+
     /*
      * Allocations
      */
@@ -160,7 +162,7 @@ void MemoryTracker::_trackDynamicMemoryCalls(
      * Iterate over @this->F
      */
     for (auto &B : F)
-        for (auto &I : F)
+        for (auto &I : B)
             if (CallInst *Call = dyn_cast<CallInst>(&I))
                 if (Functions.find(Call->getCalledFunction()) != Functions.end())
                     TrackingList.insert(Call);

@@ -43,8 +43,9 @@ void StaticWorkingSetAnalysis::Analyze(void)
          * Calculate allocation size
          */
         Optional<TypeSize> TySize = Alloca->getAllocationSizeInBits(*DL);
-        Optional<uint64_t> TySizeInLong = TySize ? TySize->getFixedSize() : None ;
-        uint64_t AllocationSize = TySizeInLong ? 0 : (*TySizeInLong % 8) ;
+        uint64_t AllocationSize =
+            TySize->isZero() ?
+            ((TySize->getFixedSize()) % 8) : 0 ;
 
 
         /*
@@ -70,12 +71,12 @@ void StaticWorkingSetAnalysis::Analyze(void)
 
 
         /*
-         * Fetch operand for allocation size
+         * Fetch the pointer to memory
          */
-        Value *AllocationSizeOp = 
-            (Package->AllocationSizeOpPos == -1) ?
-            Alloc : /* The allocation size is the result of the alloc */
-            Alloc->getOperand(Package->AllocationSizeOpPos) ;
+        Value *PointerToMemory = 
+            (Package->PointerToMemoryOpPos == -1) ?
+            Alloc : /* The pointer to memory is the result of the alloc */
+            Alloc->getOperand(Package->PointerToMemoryOpPos) ;
 
 
         /*
@@ -84,7 +85,7 @@ void StaticWorkingSetAnalysis::Analyze(void)
         uint64_t AllocationSize;
         bool CalculatedObjectSize = 
             llvm::getObjectSize(
-                AllocationSizeOp,
+                PointerToMemory,
                 AllocationSize,
                 *DL, &TLI
             );
@@ -123,4 +124,56 @@ void StaticWorkingSetAnalysis::Analyze(void)
 
 
     return;
+}
+
+
+void StaticWorkingSetAnalysis::Dump(void)
+{
+    /*
+     * TOP
+     *
+     * Dump all allocation size info for each handled instruction,
+     * dump all proportions calculated by Analyze()
+     */
+
+    errs() << "\n\n\n=== StaticWorkingSetAnalysis::Dump for " << F.getName() << " ===\n";
+ 
+    /*
+     * Stack allocations
+     */ 
+    errs() << "\n--- Stack ---\n";
+    for (auto const &[Alloca, Identifable] : StackAllocsWithIdentifiableSize)
+    {
+        if (Identifable)
+            errs() << *Alloca << " : " << StackAllocObjectSize[Alloca] << "\n";
+        else
+            errs() << *Alloca << " : 0\n";
+    }
+
+
+    /*
+     * Dynamic allocations
+     */
+    errs() << "\n--- Dynamic ---\n";
+    for (auto const &[Alloc, Identifable] : DynamicAllocsWithIdentifiableSize)
+    {
+        if (Identifable)
+            errs() << *Alloc << " : " << DynamicAllocObjectSize[Alloc] << "\n";
+        else
+            errs() << *Alloc << " : 0\n";
+    }
+
+
+    /*
+     * Proportions
+     */
+    errs() << "\n--- Dynamic ---\n" 
+           << "\tTotalAnalyzableSize : " << TotalAnalyzableSize << "\n"
+           << "\tProportionOfAnalyzableStackAllocs : " << ProportionOfAnalyzableStackAllocs << "\n"
+           << "\tProportionOfAnalyzableDynamicAllocs : " << ProportionOfAnalyzableDynamicAllocs << "\n"
+           << "\tTotalProportionOfAnalyzableAllocs : " << TotalProportionOfAnalyzableAllocs << "\n";
+
+
+    return;
+
 }

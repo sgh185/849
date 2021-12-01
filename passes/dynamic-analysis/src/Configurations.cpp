@@ -7,7 +7,7 @@ cl::opt<bool> ExitingOnInit(
 );
 
 cl::opt<bool> Debug(
-    "debug",
+    "pass-debug",
     cl::init(false), 
     cl::desc("Debugging and print-outs")
 );

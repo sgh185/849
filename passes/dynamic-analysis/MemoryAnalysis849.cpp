@@ -1,4 +1,4 @@
-#include "include/Utils.hpp"
+#include "include/StaticWorkingSetAnalysis.hpp"
 
 namespace ThePass
 {
@@ -18,6 +18,16 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
 
 
     /*
+     * Setup if necessary
+     */
+    if (!MemoryFunctions::SetupComplete)
+    {
+        MemoryFunctions::SetUpMemoryFunctions(F.getParent());
+        MemoryFunctions::SetupComplete = true;
+    }
+
+
+    /*
      * Fetch analysis
      */
     auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
@@ -27,6 +37,23 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
      * Check if the function should be handled or not
      */
     if (!Utils::IsViableFunction(F)) return PreservedAnalyses::all();
+    errs() << "---------- " << F.getName() << " ----------\n";
+    
+
+    /*
+     * Track memory
+     */
+    auto MT = MemoryTracker(F);
+    MT.Track();
+    MT.Dump();
+
+
+    /*
+     * Perform static working set analysis
+     */
+    auto WSA = StaticWorkingSetAnalysis(F, MT, TLI);
+    WSA.Analyze();
+    WSA.Dump();
 
 
     /*
