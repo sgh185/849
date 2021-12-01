@@ -12,7 +12,7 @@ set(CATPassSrc
 set_source_files_properties(${CATPassSrc} PROPERTIES COMPILE_FLAGS " -std=c++17 -fPIC")
 
 # Name of the LLVM pass
-set(CATPassName "DynAnalysis")
+set(CATPassName "MemoryAnalysis849")
 
 # configure LLVM 
 find_package(LLVM REQUIRED CONFIG)

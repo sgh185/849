@@ -3,7 +3,7 @@
 cl::opt<bool> ExitingOnInit(
     "exit-on-init",
     cl::init(false), 
-    cl::desc("Exit the transformation in doInitialization()")
+    cl::desc("Exit the transformation")
 );
 
 cl::opt<bool> Debug(
@@ -12,6 +12,8 @@ cl::opt<bool> Debug(
     cl::desc("Debugging and print-outs")
 );
 
-Function *Malloc;
+const std::string PassCommandLineOption = "dynamic-analysis";
 
-Function *Free;
+const std::string PassDescription = "849 -- Dynamic memory analysis pass";
+
+const std::string PassName = "849MemoryAnalysis";

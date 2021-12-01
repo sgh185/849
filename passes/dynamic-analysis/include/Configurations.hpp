@@ -47,13 +47,46 @@
 
 using namespace llvm;
 
+
+/*
+ * Pass options
+ */
 extern cl::opt<bool> ExitingOnInit;
 
 extern cl::opt<bool> Debug;
 
-extern Function *Malloc;
 
-extern Function *Free;
+/*
+ * Pass name, description
+ */
+extern const std::string PassCommandLineOption;
+
+extern const std::string PassDescription;
+
+extern const std::string PassName;
+
+
+/*
+ * Class to build the pass
+ */
+namespace ThePass 
+{
+
+class MemoryAnalysis849Pass final : public PassInfoMixin<MemoryAnalysis849Pass> 
+{
+public:
+
+    PreservedAnalyses run(
+        Function &F, 
+        FunctionAnalysisManager &AM
+    );
+
+    static bool isRequired(void) { return true ; } /* Needed to run with any -O* */
+};
+
+
+}
+
 
 #define DEBUG_INFO if (Debug) errs() 
 
