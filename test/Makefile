@@ -2,25 +2,20 @@
 CC=clang
 OPT=-O3
 WIDTH=4
-CFLAGS=-emit-llvm -S -fno-unroll-loops -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -Rpass-analysis=loop-vectorize -mllvm -force-vector-width=$(WIDTH)  
+CFLAGS=-emit-llvm -S 
 
-LLS=loops.ll loops.ll.nv 
+LLS=loops.ll simple_malloc.ll 
 
 all: $(LLS) 
 
 %.ll: %.c
 	$(CC) $(OPT) $(CFLAGS) $< -o $@
-
-%.ll.nv: %.c
-	$(CC) $(OPT) $(CFLAGS) -fno-vectorize -fno-slp-vectorize $< -o $@
+	opt -load-pass-plugin $(PROJ)/passes/built_passes/lib/MemoryAnalysis849.so -passes=dynamic-analysis -S $@ -o $@ > $@.out 2>&1
 
 %.dot: %.ll
 	opt -dot-cfg $<	
 
-%.dot.nv: %.ll.nv
-	opt -dot-cfg $<	
-
 clean:
-	rm -f *.ll .*.dot *.ll.nv *.dot.nv
+	rm -f *.ll .*.dot *.out
 
 .PHONY: all clean
