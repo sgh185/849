@@ -56,7 +56,7 @@ void MemoryTracker::Dump(void)
     /*
      * TOP
      *
-     * Dump all allocation and deallocation locations in @this->F
+     * Dump all allocations, deallocations, loads, stores, and allocas in @this->F
      */
 
     /*
@@ -73,6 +73,31 @@ void MemoryTracker::Dump(void)
     errs() << "\n--- Deallocations in " << F.getName() << " ---\n";
     for (auto Deallocation : Deallocations)
         errs() << *Deallocation << "\n"; 
+
+
+    /*
+     * Loads
+     */
+    errs() << "\n--- Loads in " << F.getName() << " ---\n";
+    for (auto Load : Loads)
+        errs() << *Load << "\n"; 
+
+
+
+    /*
+     * Stores
+     */
+    errs() << "\n--- Stores in " << F.getName() << " ---\n";
+    for (auto Store : Stores)
+        errs() << *Store << "\n";
+
+
+    /*
+     * Allocas
+     */
+    errs() << "\n--- Allocas in " << F.getName() << " ---\n";
+    for (auto Alloca : Allocas)
+        errs() << *Alloca << "\n";  
     
 
     return;
@@ -88,6 +113,24 @@ std::unordered_set<CallInst *> MemoryTracker::GetTrackedAllocations(void)
 std::unordered_set<CallInst *> MemoryTracker::GetTrackedDeallocations(void)
 {
     return Deallocations;
+}
+
+
+std::unordered_set<LoadInst *> MemoryTracker::GetTrackedLoads(void)
+{
+    return Loads;
+}
+
+
+std::unordered_set<StoreInst *> MemoryTracker::GetTrackedStores(void)
+{
+    return Stores;
+}
+
+
+std::unordered_set<AllocaInst *> MemoryTracker::GetTrackedAllocas(void)
+{
+    return Allocas;
 }
 
 
