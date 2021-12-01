@@ -29,7 +29,10 @@
 #include "llvm/Transforms/Utils/UnrollLoop.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/LCSSA.h"
+#include "llvm/Transforms/Vectorize/LoopVectorizationLegality.h"
+#include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Analysis/CFG.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -37,13 +40,19 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/LoopIterator.h"
+#include "llvm/Analysis/LoopAccessAnalysis.h"
+#include "llvm/Analysis/DemandedBits.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
 #include <vector>
 #include <cassert>
+
 
 using namespace llvm;
 

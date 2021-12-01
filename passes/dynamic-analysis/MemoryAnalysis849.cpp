@@ -18,6 +18,12 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
 
 
     /*
+     * Fetch analysis
+     */
+    auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
+
+
+    /*
      * Check if the function should be handled or not
      */
     if (!Utils::IsViableFunction(F)) return PreservedAnalyses::all();
