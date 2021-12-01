@@ -34,6 +34,13 @@ void StaticWorkingSetAnalysis::Analyze(void)
      */
 
     /*
+     * Setup -- Fetch arguments for @this->F for future reference
+     */
+    std::set<Value *> Arguments;
+    for (Value &Arg : F.args()) Arguments.insert(&Arg);
+
+
+    /*
      * Handle allocas
      */
     auto Allocas = MT.GetTrackedAllocas();
@@ -44,15 +51,28 @@ void StaticWorkingSetAnalysis::Analyze(void)
          */
         Optional<TypeSize> TySize = Alloca->getAllocationSizeInBits(*DL);
         uint64_t AllocationSize =
-            TySize->isZero() ?
-            ((TySize->getFixedSize()) % 8) : 0 ;
+            (TySize) ?
+            ((TySize->getFixedSize()) / 8) : 0 ;
 
 
         /*
          * Record allocation size
          */
-        StackAllocsWithIdentifiableSize[Alloca] = ((bool) AllocationSize);
+        StackAllocsToIdentifiableSize[Alloca] = ((bool) AllocationSize);
         if (AllocationSize) StackAllocObjectSize[Alloca] = AllocationSize;
+        else
+        {
+            /*
+             * Record if the operand is directly dependent on an argument
+             */
+            Value *Operand = Alloca->getOperand(0);
+            
+            if (CastInst *CastOperand = dyn_cast<CastInst>(Operand)) /* Ignore casts */
+                Operand = CastOperand->getOperand(0);
+            
+            if (Arguments.find(Operand) != Arguments.end())
+                StackAllocsDependentOnArguments[Alloca] = Operand;
+        }
     }
 
 
@@ -94,8 +114,25 @@ void StaticWorkingSetAnalysis::Analyze(void)
         /*
          * Record allocation size
          */
-        DynamicAllocsWithIdentifiableSize[Alloc] = (CalculatedObjectSize);
+        DynamicAllocsToIdentifiableSize[Alloc] = (CalculatedObjectSize);
         if (CalculatedObjectSize) DynamicAllocObjectSize[Alloc] = AllocationSize;
+        else 
+        {
+            /*
+             * Record if the allocation size operand is directly dependent on an argument
+             */
+            Value *AllocationSize = 
+                (Package->AllocationSizeOpPos == -1) ?
+                Alloc : /* The allocation size is the result of the alloc */
+                Alloc->getOperand(Package->AllocationSizeOpPos) ;
+
+            if (CastInst *CastOperand = dyn_cast<CastInst>(AllocationSize)) /* Ignore casts */
+                AllocationSize = CastOperand->getOperand(0);
+
+            if (Arguments.find(AllocationSize) != Arguments.end())
+                DynamicAllocsDependentOnArguments[Alloc] = AllocationSize;
+        }
+
     }
 
 
@@ -113,14 +150,20 @@ void StaticWorkingSetAnalysis::Analyze(void)
      * Calculate statistics -- Proportions
      */ 
     ProportionOfAnalyzableStackAllocs = 
-        ((double) StackAllocObjectSize.size()) / ((double) StackAllocsWithIdentifiableSize.size()) ;
+        ((double) StackAllocObjectSize.size()) / ((double) StackAllocsToIdentifiableSize.size()) ;
 
     ProportionOfAnalyzableDynamicAllocs = 
-        ((double) DynamicAllocObjectSize.size()) / ((double) DynamicAllocsWithIdentifiableSize.size()) ;
+        ((double) DynamicAllocObjectSize.size()) / ((double) DynamicAllocsToIdentifiableSize.size()) ;
 
     TotalProportionOfAnalyzableAllocs = 
         (((double) StackAllocObjectSize.size()) + ((double) DynamicAllocObjectSize.size())) /
-        (((double) StackAllocsWithIdentifiableSize.size()) + ((double) DynamicAllocsWithIdentifiableSize.size())) ;
+        (((double) StackAllocsToIdentifiableSize.size()) + ((double) DynamicAllocsToIdentifiableSize.size())) ;
+
+    ProportionOfStackAllocsDependentOnArguments = 
+        ((double) StackAllocsDependentOnArguments.size()) / ((double) StackAllocsToIdentifiableSize.size()) ;
+
+    ProportionOfDynamicAllocsDependentOnArguments = 
+        ((double) DynamicAllocsDependentOnArguments.size()) / ((double) DynamicAllocsToIdentifiableSize.size()) ;
 
 
     return;
@@ -142,7 +185,7 @@ void StaticWorkingSetAnalysis::Dump(void)
      * Stack allocations
      */ 
     errs() << "\n--- Stack ---\n";
-    for (auto const &[Alloca, Identifable] : StackAllocsWithIdentifiableSize)
+    for (auto const &[Alloca, Identifable] : StackAllocsToIdentifiableSize)
     {
         if (Identifable)
             errs() << *Alloca << " : " << StackAllocObjectSize[Alloca] << "\n";
@@ -155,7 +198,7 @@ void StaticWorkingSetAnalysis::Dump(void)
      * Dynamic allocations
      */
     errs() << "\n--- Dynamic ---\n";
-    for (auto const &[Alloc, Identifable] : DynamicAllocsWithIdentifiableSize)
+    for (auto const &[Alloc, Identifable] : DynamicAllocsToIdentifiableSize)
     {
         if (Identifable)
             errs() << *Alloc << " : " << DynamicAllocObjectSize[Alloc] << "\n";
@@ -171,7 +214,9 @@ void StaticWorkingSetAnalysis::Dump(void)
            << "\tTotalAnalyzableSize : " << TotalAnalyzableSize << "\n"
            << "\tProportionOfAnalyzableStackAllocs : " << ProportionOfAnalyzableStackAllocs << "\n"
            << "\tProportionOfAnalyzableDynamicAllocs : " << ProportionOfAnalyzableDynamicAllocs << "\n"
-           << "\tTotalProportionOfAnalyzableAllocs : " << TotalProportionOfAnalyzableAllocs << "\n";
+           << "\tTotalProportionOfAnalyzableAllocs : " << TotalProportionOfAnalyzableAllocs << "\n"
+           << "\tProportionOfStackAllocsDependentOnArguments : " << ProportionOfStackAllocsDependentOnArguments << "\n"
+           << "\tProportionOfDynamicAllocsDependentOnArguments : " << ProportionOfDynamicAllocsDependentOnArguments << "\n";
 
 
     return;

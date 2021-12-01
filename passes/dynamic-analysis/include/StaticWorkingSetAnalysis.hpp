@@ -26,14 +26,17 @@ public:
     /*
      * New public state
      */
-    uint64_t TotalAnalyzableSize;
+    uint64_t TotalAnalyzableSize=0;
 
-    double ProportionOfAnalyzableStackAllocs;
+    double ProportionOfAnalyzableStackAllocs=0.0;
 
-    double ProportionOfAnalyzableDynamicAllocs;
+    double ProportionOfAnalyzableDynamicAllocs=0.0;
 
-    double TotalProportionOfAnalyzableAllocs;
+    double TotalProportionOfAnalyzableAllocs=0.0;
 
+    double ProportionOfStackAllocsDependentOnArguments=0.0;
+
+    double ProportionOfDynamicAllocsDependentOnArguments=0.0;
 
 private:
 
@@ -52,12 +55,16 @@ private:
     /*
      * New analysis state
      */
-    std::unordered_map<AllocaInst *, bool> StackAllocsWithIdentifiableSize;
+    std::unordered_map<AllocaInst *, bool> StackAllocsToIdentifiableSize;
 
     std::unordered_map<AllocaInst *, uint64_t> StackAllocObjectSize;
 
-    std::unordered_map<CallInst *, bool> DynamicAllocsWithIdentifiableSize;
+    std::unordered_map<AllocaInst *, Value *> StackAllocsDependentOnArguments;
+
+    std::unordered_map<CallInst *, bool> DynamicAllocsToIdentifiableSize;
 
     std::unordered_map<CallInst *, uint64_t> DynamicAllocObjectSize;
+
+    std::unordered_map<CallInst *, Value *> DynamicAllocsDependentOnArguments;
 
 };
