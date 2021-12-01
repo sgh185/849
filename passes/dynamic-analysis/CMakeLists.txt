@@ -1,9 +1,12 @@
 # Sources
 # file(GLOB CATPassSrc "*.cpp")
 set(CATPassSrc 
-  DynAnalysis.cpp
-  src/DynamicMemoryTracker.cpp
+  MemoryAnalysis849.cpp
+  src/ProfilerTransformer.cpp
+  src/StaticWorkingSetAnalysis.cpp
   src/MemoryPoolTransformer.cpp
+  src/MemoryTracker.cpp
+  src/MemoryFunction.cpp
   src/Utils.cpp
   src/Configurations.cpp
 )

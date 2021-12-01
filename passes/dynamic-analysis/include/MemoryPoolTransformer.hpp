@@ -1,3 +1,3 @@
-#include "DynamicMemoryTracker.hpp"
+#include "MemoryTracker.hpp"
 
-class MemoryPollTransformer;
+class MemoryPoolTransformer;
