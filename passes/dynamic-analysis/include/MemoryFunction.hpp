@@ -80,3 +80,26 @@ namespace ProfilerFunctions
 
     void SetUpProfilerFunctions(Module *M);
 }
+
+
+/*
+ * Global state for allocator functions to use in the pass
+ */
+namespace AllocatorFunctions
+{
+    extern bool SetupComplete;
+
+    extern Function *Constructor;
+
+    extern Function *Init;
+
+    extern Function *AllocateCDP;
+    
+    extern Function *AddAllocator;
+
+    extern Function *Allocate;
+
+    extern Function *AllocateWRI;
+
+    void SetUpAllocatorFunctions(Module *M);
+}

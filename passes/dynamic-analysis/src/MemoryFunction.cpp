@@ -98,6 +98,43 @@ void ProfilerFunctions::SetUpProfilerFunctions(Module *M)
 }
 
 
+/*
+ * -------------------- AllocatorFunctions --------------------
+ */
+namespace AllocatorFunctions
+{
+
+bool SetupComplete;
+
+Function *Constructor = nullptr;
+
+Function *Init = nullptr;
+
+Function *AllocateCDP = nullptr;
+
+Function *AddAllocator = nullptr;
+
+Function *Allocate = nullptr;
+
+Function *AllocateWRI = nullptr;
+
+void AllocatorFunctions::SetUpProfilerFunctions(Module *M)
+{
+    /*
+     * TOP --- Fetch the profiler methods
+     */
+    AllocatorFunctions::Constructor = Utils::GetMethod(M, "_ZN9Allocator11ConstructorEv");
+    AllocatorFunctions::Init = Utils::GetMethod(M, "_ZN9Allocator4InitEm");
+    AllocatorFunctions::AllocateCDP = Utils::GetMethod(M, "_ZN9Allocator32AllocateFromCompilerDirectedPoolEm");
+    AllocatorFunctions::AddAllocator = Utils::GetMethod(M, "_ZN9Allocator12AddAllocatorEmmm");
+    AllocatorFunctions::Allocate = Utils::GetMethod(M, "_ZN9Allocator8AllocateEm");
+    AllocatorFunctions::AllocateWRI = Utils::GetMethod(M, "_ZN9Allocator23AllocateWithRuntimeInitEmm");
+    return;
+}
+
+}
+
+
 
 /*
  * ---------- Constructors ----------

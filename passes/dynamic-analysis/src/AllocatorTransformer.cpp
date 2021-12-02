@@ -22,7 +22,7 @@ void AllocatorTransformer::Transform(void)
      * Inject allocator instrumentation
      */
 
-    uint64_t CurrentOffset = 0;
+    uint64_t CurrentOffset = 0; /* Becomes total size */
 
     /*
      * Find candidates to replace with compiler-directed pools
@@ -125,6 +125,164 @@ void AllocatorTransformer::Transform(void)
         }   
     }
 
+
+    std::unordered_map<
+        CallInst *, /* Old */
+        CallInst * /* New -- replace uses with */
+    > CallsToReplace;
+
+
+    /*
+     * Build call to Init and inject into Constructor
+     */
+    Instruction *ConstructorInjectionLocation = AllocatorFunctions::Constructor->getEntryBasicBlock().getFirstNonPHI();
+    IRBuilder<> OperandBuilder{F.getContext()};
+    std::vector<Value *> Operands = {
+        OperandBuilder.getInt64(CurrentOffset) /* Final CurrentOffset is the PoolSize */
+    };
+
+    CallInst *NewCall = 
+        _injectAllocatorInstrumentation (
+            AllocatorFunctions::Init,
+            Operands,
+            ConstructorInjectionLocation,
+            "compiler.directed.pool.init"
+        );
+
+
+    /*
+     * Build calls to AllocateFromCompilerDirectedPool
+     */
+    for (auto const &[Alloc, Offset] : CompilerDirectedPoolCandidates)
+    {
+        /* 
+         * Set up operands
+         */
+        IRBuilder<> OperandBuilder{F.getContext()};
+        std::vector<Value *> Operands = {
+            OperandBuilder.getInt64(Offset)
+        };
+
+
+        /*
+         * Build call
+         */
+        CallInst *NewCall = 
+            _injectAllocatorInstrumentation (
+                AllocatorFunctions::AllocateCDP,
+                Operands,
+                Alloc,
+                "compiler.directed.pool"
+            );
+
+        CallsToReplace[Alloc] = NewCall;
+    }
+
+
+    /*
+     * Build calls to AddAllocator and Allocate
+     */
+    for (auto const &[BumpID, Pair] : BumpAllocationCandidates)
+    {
+        /*
+         * Fetch pair
+         */
+        CallInst *Alloc = Pair.first;
+        uint64_t BlockSize = Pair.second;
+
+
+        /* 
+         * Build call to AddAllocator
+         */
+        IRBuilder<> OperandBuilder{F.getContext()};
+        std::vector<Value *> Operands = {
+            OperandBuilder.getInt64(BumpID),
+            OperandBuilder.getInt64(BlockSize),
+            OperandBuilder.getInt64(DEFAULT_POOL_SIZE),
+        };
+
+        CallInst *AddAllocatorCall = 
+            _injectAllocatorInstrumentation (
+                AllocatorFunctions::AddAllocator,
+                Operands,
+                ConstructorInjectionLocation,
+                "add.bump.allocator"
+            );
+
+
+        /* 
+         * Build call to Allocate
+         */
+        IRBuilder<> OperandBuilder{F.getContext()};
+        std::vector<Value *> Operands = {
+            OperandBuilder.getInt64(BumpID)
+        };
+
+        CallInst *AllocateCall = 
+            _injectAllocatorInstrumentation (
+                AllocatorFunctions::Allocate,
+                Operands,
+                Alloc,
+                "allocate"
+            );
+
+        CallsToReplace[Alloc] = AllocateCall;
+    }
+
+
+    /*
+     * Build calls to AllocateWithRuntimeInit
+     */
+    for (auto const &[BumpID, Pair] : BumpAllocationWithRuntimeInitCandidates)
+    {
+        /*
+         * Fetch pair
+         */
+        CallInst *Alloc = Pair.first;
+        Value *BlockSize = Pair.second;
+
+
+        /* 
+         * Build call to AddAllocator
+         */
+        IRBuilder<> OperandBuilder{Alloc};
+        Value *CastBlockSize = 
+            OperandBuilder.CreateIntCast(
+                BlockSize,
+                OperandBuilder.getInt64Ty(),
+                false
+            );
+
+        std::vector<Value *> Operands = {
+            OperandBuilder.getInt64(BumpID),
+            CastBlockSize
+        };
+
+        CallInst *NewCall = 
+            _injectAllocatorInstrumentation (
+                AllocatorFunctions::AllocateWRI,
+                Operands,
+                Alloc,
+                "allocate.with.runtime.init"
+            );
+
+        CallsToReplace[Alloc] = NewCall;
+    }
+
+
+    /*
+     * Replace uses with new allocator calls wherever possible
+     */
+    std::vector<CallInst *> CallsToErase;
+    for (auto &[Old, New] : CallsToReplace)
+    {
+        New->replaceAllUsesWith(Old);
+        CallsToErase.push_back(New);
+    }
+
+    for (auto Call : CallsToErase)
+        Call->eraseFromParent();
+
     
     return;
 }
@@ -133,7 +291,7 @@ void AllocatorTransformer::Transform(void)
 /*
  * ---------- Private Methods ----------
  */
-void AllocatorTransformer::_injectAllocatorInstrumentation(
+CallInst *AllocatorTransformer::_injectAllocatorInstrumentation(
     Function *FunctionToCall,
     std::vector<Value *> &Operands,
     Instruction *InjectionLocation,
@@ -144,20 +302,13 @@ void AllocatorTransformer::_injectAllocatorInstrumentation(
      * TOP
      *
      * Insert a call to @FunctionToCall with operand list @Operands
-     * under @InjectionLocation with metadata @MDString
+     * above @InjectionLocation with metadata @MDString
      */
-
-    /*
-     * Check validity of next node for @InjectionLocation
-     */
-    Instruction *Next = InjectionLocation->getNextNode();
-    assert(Next);
-
 
     /*
      * Set up IRBuilder
      */
-    IRBuilder<> Builder{Next};
+    IRBuilder<> Builder{InjectionLocation};
 
 
     /*
@@ -182,10 +333,10 @@ void AllocatorTransformer::_injectAllocatorInstrumentation(
      */
     Utils::InjectMetadata(
         MDString,
-        "profiler.injection",
+        "allocator.injection",
         Call
     );
 
 
-    return;
+    return Call;
 }

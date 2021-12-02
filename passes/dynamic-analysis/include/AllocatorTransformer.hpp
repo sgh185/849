@@ -1,5 +1,7 @@
 #include "StaticWorkingSetAnalysis.hpp"
 
+#define DEFAULT_POOL_SIZE 32
+
 class AllocatorTransformer
 {
 public:
@@ -58,7 +60,7 @@ private:
     /*
      * Private functions
      */
-    void _injectAllocatorInstrumentation(
+    CallInst *_injectAllocatorInstrumentation(
         Function *FunctionToCall,
         std::vector<Value *> &Operands,
         Instruction *InjectionLocation,
