@@ -22,6 +22,8 @@ void *CompilerPartitionedPool;
 /*
  * Compiler exposed methods for allocator 
  */
+void Constructor(void);
+
 void Init(uint64_t PoolSize);
 
 void AddAllocator(
@@ -29,6 +31,8 @@ void AddAllocator(
     uint64_t BlockSize,
     uint64_t PoolSize
 );
+
+void *AllocateFromCompilerDirectedPool(uint64_t Offset);
 
 void *Allocate(uint64_t BumpID);
 

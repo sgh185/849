@@ -7,6 +7,10 @@ namespace Allocator
 /*
  * ---------- Compiler Exposed Methods ---------- 
  */
+__attribute__((constructor, used))
+void Constructor(void) { return; }
+
+
 void Init(uint64_t PoolSize)
 {
     /*
@@ -38,6 +42,18 @@ void AddAllocator(
     );
 
     return;
+}
+
+
+void *AllocateFromCompilerDirectedPool(uint64_t Offset)
+{
+    /*
+     * TOP
+     *
+     * Return a pointer that is offset @Offset into Allocator::CompilerPartitionedPool
+     */
+    uint64_t Address = ((uint64_t) Allocator::CompilerPartitionedPool) + Offset;
+    return ((void *) Address);
 }
 
 
