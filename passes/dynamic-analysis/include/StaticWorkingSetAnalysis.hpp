@@ -11,7 +11,8 @@ public:
     StaticWorkingSetAnalysis(
         Function &F,
         MemoryTracker &MT,
-        TargetLibraryInfo &TLI
+        TargetLibraryInfo &TLI,
+        LoopInfo &LI
     );
 
 
@@ -38,6 +39,21 @@ public:
 
     double ProportionOfDynamicAllocsDependentOnArguments=0.0;
 
+    std::unordered_map<AllocaInst *, bool> StackAllocsToIdentifiableSize;
+
+    std::unordered_map<AllocaInst *, uint64_t> StackAllocObjectSize;
+
+    std::unordered_map<AllocaInst *, Value *> StackAllocsDependentOnArguments;
+
+    std::unordered_map<CallInst *, bool> DynamicAllocsToIdentifiableSize;
+
+    std::unordered_map<CallInst *, Loop *> DynamicAllocsInLoops;
+
+    std::unordered_map<CallInst *, uint64_t> DynamicAllocObjectSize;
+
+    std::unordered_map<CallInst *, Value *> DynamicAllocsDependentOnArguments;
+
+
 private:
 
     /*
@@ -49,22 +65,8 @@ private:
 
     TargetLibraryInfo &TLI;
 
+    LoopInfo &LI;
+
     DataLayout *DL;
-
-
-    /*
-     * New analysis state
-     */
-    std::unordered_map<AllocaInst *, bool> StackAllocsToIdentifiableSize;
-
-    std::unordered_map<AllocaInst *, uint64_t> StackAllocObjectSize;
-
-    std::unordered_map<AllocaInst *, Value *> StackAllocsDependentOnArguments;
-
-    std::unordered_map<CallInst *, bool> DynamicAllocsToIdentifiableSize;
-
-    std::unordered_map<CallInst *, uint64_t> DynamicAllocObjectSize;
-
-    std::unordered_map<CallInst *, Value *> DynamicAllocsDependentOnArguments;
 
 };

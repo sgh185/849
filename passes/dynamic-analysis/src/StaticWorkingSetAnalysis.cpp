@@ -6,8 +6,9 @@
 StaticWorkingSetAnalysis::StaticWorkingSetAnalysis(
     Function &F,
     MemoryTracker &MT,
-    TargetLibraryInfo &TLI
-) : F(F), MT(MT), TLI(TLI) 
+    TargetLibraryInfo &TLI,
+    LoopInfo &LI
+) : F(F), MT(MT), TLI(TLI), LI(LI) 
 {
     /*
      * Set up DataLayout (@this->DL)
@@ -133,6 +134,18 @@ void StaticWorkingSetAnalysis::Analyze(void)
                 DynamicAllocsDependentOnArguments[Alloc] = AllocationSize;
         }
 
+
+        /*
+         * Check if the allocation belongs in a loop
+         */
+        for (auto Loop : LI)
+        {
+            if (Loop->contains(Alloc))
+            {
+                DynamicAllocsInLoops[Alloc] = Loop;
+                break;
+            }
+        }
     }
 
 
@@ -204,6 +217,8 @@ void StaticWorkingSetAnalysis::Dump(void)
             errs() << *Alloc << " : " << DynamicAllocObjectSize[Alloc] << "\n";
         else
             errs() << *Alloc << " : 0\n";
+
+        if (DynamicAllocsInLoops[Alloc]) errs() << "\tin loop\n";
     }
 
 

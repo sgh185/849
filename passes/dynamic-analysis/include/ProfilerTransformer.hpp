@@ -19,7 +19,7 @@ public:
      */
     void Transform(void);
 
-    void Dump(void);
+    // void Dump(void);
     
 
 private:

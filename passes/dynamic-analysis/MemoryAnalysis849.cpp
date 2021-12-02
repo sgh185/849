@@ -30,6 +30,7 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
     /*
      * Fetch analysis
      */
+    auto &LI = AM.getResult<LoopAnalysis>(F);
     auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
 
 
