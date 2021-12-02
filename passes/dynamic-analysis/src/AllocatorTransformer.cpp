@@ -135,7 +135,7 @@ void AllocatorTransformer::Transform(void)
     /*
      * Build call to Init and inject into Constructor
      */
-    Instruction *ConstructorInjectionLocation = AllocatorFunctions::Constructor->getEntryBasicBlock().getFirstNonPHI();
+    Instruction *ConstructorInjectionLocation = AllocatorFunctions::Constructor->getEntryBlock().getFirstNonPHI();
     IRBuilder<> OperandBuilder{F.getContext()};
     std::vector<Value *> Operands = {
         OperandBuilder.getInt64(CurrentOffset) /* Final CurrentOffset is the PoolSize */
@@ -195,7 +195,7 @@ void AllocatorTransformer::Transform(void)
          * Build call to AddAllocator
          */
         IRBuilder<> OperandBuilder{F.getContext()};
-        std::vector<Value *> Operands = {
+        std::vector<Value *> OperandsToAddAllocator = {
             OperandBuilder.getInt64(BumpID),
             OperandBuilder.getInt64(BlockSize),
             OperandBuilder.getInt64(DEFAULT_POOL_SIZE),
@@ -204,7 +204,7 @@ void AllocatorTransformer::Transform(void)
         CallInst *AddAllocatorCall = 
             _injectAllocatorInstrumentation (
                 AllocatorFunctions::AddAllocator,
-                Operands,
+                OperandsToAddAllocator,
                 ConstructorInjectionLocation,
                 "add.bump.allocator"
             );
@@ -213,15 +213,14 @@ void AllocatorTransformer::Transform(void)
         /* 
          * Build call to Allocate
          */
-        IRBuilder<> OperandBuilder{F.getContext()};
-        std::vector<Value *> Operands = {
+        std::vector<Value *> OperandsToAllocate = {
             OperandBuilder.getInt64(BumpID)
         };
 
         CallInst *AllocateCall = 
             _injectAllocatorInstrumentation (
                 AllocatorFunctions::Allocate,
-                Operands,
+                OperandsToAllocate,
                 Alloc,
                 "allocate"
             );

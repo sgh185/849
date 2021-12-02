@@ -118,7 +118,7 @@ Function *Allocate = nullptr;
 
 Function *AllocateWRI = nullptr;
 
-void AllocatorFunctions::SetUpProfilerFunctions(Module *M)
+void AllocatorFunctions::SetUpAllocatorFunctions(Module *M)
 {
     /*
      * TOP --- Fetch the profiler methods

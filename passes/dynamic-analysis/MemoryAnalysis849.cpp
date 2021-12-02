@@ -26,6 +26,13 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
         MemoryFunctions::SetupComplete = true;
     }
 
+    if (!AllocatorFunctions::SetupComplete)
+    {
+        AllocatorFunctions::SetUpAllocatorFunctions(F.getParent());
+        AllocatorFunctions::SetupComplete = true;
+    }
+
+
 
     /*
      * Fetch analysis
