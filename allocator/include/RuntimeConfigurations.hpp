@@ -13,5 +13,5 @@
 #define RUNTIME_DEBUG if (RUNTIME_DEBUG_ON) std::cerr
 
 #define RUNTIME_ASSERT_ON 0
-#define RUNTIME_ASSERT if (RUNTIME_ASSERT_ON) std::assert
+#define RUNTIME_ASSERT if (RUNTIME_ASSERT_ON) assert
 

@@ -19,7 +19,7 @@ void *CompilerPartitionedPool;
 /*
  * Compiler exposed methods for allocator 
  */
-void Init(void);
+void Init(uint64_t PoolSize);
 
 void AddAllocator(
     uint64_t BumpID,
@@ -100,7 +100,7 @@ public:
     /*
      * Drivers
      */
-    void Init();
+    void Init(uint64_t PoolSize);
 
     void AddBumpAllocator(
         uint64_t BumpID,

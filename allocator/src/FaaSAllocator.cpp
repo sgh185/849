@@ -6,14 +6,15 @@ namespace Allocator
 /*
  * ---------- Compiler Exposed Methods ---------- 
  */
-void Init(void)
+void Init(uint64_t PoolSize)
 {
     /*
      * TOP
      * 
-     * Build a new pool and set it to Allocator::TheAllocator
+     * Build the compiler directed pool and set it to Allocator::TheAllocator
      */
     Allocator::TheAllocator = new Allocator::FaaSAllocator();
+    Allocator::TheAllocator->Init(PoolSize);
     return;
 }
 
@@ -127,8 +128,8 @@ void *BumpAllocator::Allocate(void)
      * Calculate the pointer for the block ID
      */
     uint64_t Offset = BlockSize * FreeBlockID;
-    void *Pointer = PoolToUse + Offset;
-    return Pointer;
+    uint64_t PointerAddr = ((uint64_t) PoolToUse) + Offset;
+    return ((void *) PointerAddr);
 }
 
 
@@ -225,7 +226,7 @@ void FaaSAllocator::Init(uint64_t PoolSize)
     {
         RUNTIME_DEBUG << "FaaSAllocator::InitPool: Pool allocation failed!" << std::endl;
         if (RUNTIME_ASSERT_ON) abort();
-        return false;
+        return;
     }
 
     
