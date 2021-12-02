@@ -33,8 +33,6 @@ private:
 
     StaticWorkingSetAnalysis &WSA;
     
-    LoopInfo &LI;
-
 
     /*
      * New analysis state

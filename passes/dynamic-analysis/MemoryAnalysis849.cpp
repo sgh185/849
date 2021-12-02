@@ -52,7 +52,7 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
     /*
      * Perform static working set analysis
      */
-    auto WSA = StaticWorkingSetAnalysis(F, MT, TLI);
+    auto WSA = StaticWorkingSetAnalysis(F, MT, TLI, LI);
     WSA.Analyze();
     WSA.Dump();
 

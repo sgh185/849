@@ -4,7 +4,7 @@ set(CATPassSrc
   MemoryAnalysis849.cpp
   src/ProfilerTransformer.cpp
   src/StaticWorkingSetAnalysis.cpp
-  src/MemoryPoolTransformer.cpp
+  src/AllocatorTransformer.cpp
   src/MemoryTracker.cpp
   src/MemoryFunction.cpp
   src/Utils.cpp
