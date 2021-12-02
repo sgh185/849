@@ -100,6 +100,7 @@ void pop(
 }
 
 
+__attribute__((always_inline))
 list bfs(
     int **graph,
     int num_vertices,
