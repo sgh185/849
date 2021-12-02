@@ -91,7 +91,7 @@ void pop(
      * Pop the last entry (pop from front)
      */ 
     node *new_front = queue->front->next ;
-    free(queue->front);
+    // free(queue->front);
     queue->front = new_front;
     queue->size--;
 
