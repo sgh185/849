@@ -3,6 +3,7 @@
 namespace Allocator
 {
 
+
 /*
  * ---------- Compiler Exposed Methods ---------- 
  */
@@ -40,15 +41,30 @@ void AddAllocator(
 }
 
 
-void Allocate(uint64_t BumpID)
+void *AllocateWithRuntimeInit(
+    uint64_t BumpID,
+    uint64_t BlockSize
+)
+{
+    /*
+     * TOP
+     * 
+     * Wrapper to allocate memory w/ runtime init in Allocator::TheAllocator 
+     */
+    void *Allocation = Allocator::TheAllocator->AllocateFromBumpWithRuntimeInit(BumpID, BlockSize);
+    return Allocation;
+}
+
+
+void *Allocate(uint64_t BumpID)
 {
     /*
      * TOP
      * 
      * Wrapper to allocate memory in Allocator::TheAllocator 
      */
-    Allocator::TheAllocator->AllocateFromBump(BumpID);
-    return;
+    void *Allocation = Allocator::TheAllocator->AllocateFromBump(BumpID);
+    return Allocation;
 }
 
 
@@ -244,6 +260,115 @@ void FaaSAllocator::Init(uint64_t PoolSize)
 
     return;
 }
+
+
+void FaaSAllocator::AddBumpAllocator(
+    uint64_t BumpID,
+    uint64_t BlockSize,
+    uint64_t PoolSize
+)
+{
+    /*
+     * TOP
+     *
+     * Create a new bump allocator and record it
+     */
+    BumpPools[BumpID] = 
+        new BumpAllocator (
+            BumpID,
+            BlockSize,
+            PoolSize
+        );
+
+    return;
+}
+
+void *FaaSAllocator::AllocateFromBumpWithRuntimeInit(
+    uint64_t BumpID,
+    uint64_t BlockSize
+)
+{
+    /*
+     * TOP
+     *
+     * Allocate from the bump allocator specified by @BumpID. This
+     * method supports the possibility of initializing the allocator
+     * during runtime b/c the block size was unknown at compile
+     * time. Here, the block size is simply a parameter and the 
+     * pool size is the default size. 
+     */
+
+    /*
+     * Initialize bump allocator if necessary
+     */
+    if (BumpPools.find(BumpID) == BumpPools.end())
+    {
+        BumpPools[BumpID] = 
+            new BumpAllocator (
+                BumpID,
+                BlockSize,
+                Allocator::DefaultNumPoolEntries * BlockSize
+            );
+    }
+
+
+    /*
+     * Now allocate
+     */
+    void *Allocation = AllocateFromBump(BumpID);
+    return Allocation;
+}
+
+
+void *FaaSAllocator::AllocateFromBump(
+    uint64_t BumpID
+)
+{
+    /*
+     * TOP
+     *
+     * Allocate from the bump allocator specified by @BumpID.
+     */
+
+    /*
+     * Fetch the bump allocator
+     */
+    BumpAllocator *BA = BumpPools[BumpID];
+
+
+    /*
+     * Create allocation and return
+     */
+    void *Allocation = BA->Allocate();
+    return Allocation;
+}
+
+
+void FaaSAllocator::FreeFromBump(
+    uint64_t BumpID,
+    void *Pointer
+)
+{
+    /*
+     * TOP
+     *
+     * Free @Pointer from the bump allocator specified by @BumpID.
+     */
+
+    /*
+     * Fetch the bump allocator
+     */
+    BumpAllocator *BA = BumpPools[BumpID];
+
+
+    /*
+     * Create allocation and return
+     */
+    BA->Free(Pointer);
+    return ;
+}
+
+
 
 
 /*

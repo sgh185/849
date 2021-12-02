@@ -8,6 +8,9 @@ namespace Allocator
 
 class FaaSAllocator;
 
+uint64_t DefaultNumPoolEntries=32;
+
+
 /*
  * Global pool
  */
@@ -27,7 +30,12 @@ void AddAllocator(
     uint64_t PoolSize
 );
 
-void Allocate(uint64_t BumpID);
+void *Allocate(uint64_t BumpID);
+
+void *AllocateWithRuntimeInit(
+    uint64_t BumpID,
+    uint64_t BlockSize
+);
 
 void Free(void *Pointer);
 
@@ -109,6 +117,11 @@ public:
     );
 
     void *AllocateFromBump(uint64_t BumpID);
+
+    void *AllocateFromBumpWithRuntimeInit(
+        uint64_t BumpID,
+        uint64_t RuntimeInit
+    );
 
     void FreeFromBump(
         uint64_t BumpID,
