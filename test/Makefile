@@ -4,7 +4,7 @@ OPT=-O3
 WIDTH=4
 CFLAGS=-emit-llvm -S 
 
-LLS=loops.ll simple_malloc.ll matmul.ll 
+LLS=loops.ll simple_malloc.ll matmul.ll csr.ll bfs.ll
 
 all: $(LLS) 
 
