@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "utils.h"
+
+
+#define AI __attribute__((always_inline, annotate("analyze")))
+#define ANALYZE __attribute__((annotate("analyze")))  
+
 
 #define DEBUG 0
 #define DEBUG_PRINT if (DEBUG) printf
@@ -22,7 +28,7 @@
  * co-design
  */ 
 
-#define NUM_VERTICES 100
+#define NUM_VERTICES 1000
 
 
 /*
@@ -39,7 +45,7 @@ typedef struct {
 } list ;
 
 
-__attribute__((always_inline))
+AI
 void push(
     list *queue,
     int entry_to_add
@@ -72,7 +78,7 @@ void push(
 }
 
 
-__attribute__((always_inline))
+AI
 void pop(
     list *queue
 )
@@ -91,7 +97,7 @@ void pop(
      * Pop the last entry (pop from front)
      */ 
     node *new_front = queue->front->next ;
-    // free(queue->front);
+    free(queue->front);
     queue->front = new_front;
     queue->size--;
 
@@ -100,7 +106,7 @@ void pop(
 }
 
 
-__attribute__((always_inline))
+AI
 list bfs(
     int **graph,
     int num_vertices,
@@ -175,13 +181,20 @@ list bfs(
 }
 
 
+ANALYZE
 int main(void)
 {
     /*
      * "Inputs"
      */ 
     int graph[NUM_VERTICES][NUM_VERTICES];
-    int src = 8;
+    int src = 42;
+
+
+    /*
+     * Randomly fill out graph
+     */ 
+    random_init_adj_matrix(NUM_VERTICES, graph); 
 
 
     /*

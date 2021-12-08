@@ -2,7 +2,9 @@
 #include <stdio.h>
 
 #define SIZE 32
+#define ANALYZE __attribute__((annotate("analyze")))
 
+ANALYZE
 int main(void)
 {
     int *arr = (int *) malloc(32);
@@ -14,6 +16,7 @@ int main(void)
 }
 
 
+ANALYZE
 void dyn(int n)
 {
     int *arr = (int *) malloc(n);
@@ -26,6 +29,7 @@ void dyn(int n)
 }
 
 
+ANALYZE
 void stack_with_arg(int n)
 {
     int arr[n]; 
@@ -36,6 +40,7 @@ void stack_with_arg(int n)
 }
 
 
+ANALYZE
 void stack(void)
 {
     int arr[30]; 

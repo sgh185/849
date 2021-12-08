@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "utils.h"
 
+#define AI __attribute__((always_inline, annotate("analyze")))
+#define ANALYZE __attribute__((annotate("analyze")))  
+
+#define PERSIST 1
 #define DEBUG 0
 #define DEBUG_PRINT if (DEBUG) printf
 #define DEBUG_ASSERT if (DEBUG) assert
@@ -35,11 +40,11 @@ typedef struct {
 } csr ;
 
 
-__attribute__((always_inline))
+AI
 void convert_to_csr(
-    int **A,
     int dim_A_1,
     int dim_A_2,
+    int A[dim_A_1][dim_A_2],
     csr *result
 )
 {
@@ -69,7 +74,7 @@ void convert_to_csr(
     result->col_ind_for_non_zeros = (int *) malloc(num_non_zeros * sizeof(int));
     result->row_starts = (int *) malloc(num_row_starts * sizeof(int));
 
-    
+
     /*
      * Convert to CSR format
      */ 
@@ -102,6 +107,7 @@ void convert_to_csr(
 }
 
 
+ANALYZE
 int main(void)
 {
     /*
@@ -111,14 +117,26 @@ int main(void)
 
 
     /*
+     * Randomly init matrix
+     */ 
+    random_init_matrix(A_1, A_2, A);  
+
+
+    /*
      * Convert and return the resulting matrix in CSR form
      */ 
     csr result;
     convert_to_csr(
-        (int **) &A, 
         A_1, A_2,
-        &result
+        A, &result
     );
+
+
+#if PERSIST
+    printf("r %d\n", result.col_ind_for_non_zeros[0]);
+    printf("r %d\n", result.non_zeros[0]);
+    printf("r %d\n", result.row_starts[0]);
+#endif
 
 
     return 0;
