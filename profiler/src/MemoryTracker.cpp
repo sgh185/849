@@ -12,7 +12,19 @@ __attribute__((constructor)) void Track::InitializeTracker(void)
      * Construct a new MemoryTracker
      */
     Track::Tracker = new Track::MemoryTracker();
-    PROFILER_DEBUG << "Track::InitializeTracker: Initialized!" << std::endl;
+    return;
+}
+
+
+__attribute__((destructor)) void Track::DumpTracker(void)
+{
+    /*
+     * TOP
+     * 
+     * Dump all information from the global tracker
+     */
+    Track::Tracker->Dump();
+    PROFILER_DEBUG << "Track::DumpTracker: Finished!" << std::endl;
     return;
 }
 
@@ -144,19 +156,23 @@ void Track::TrackStore(void *Pointer)
 /*
  * ---------- Constructors ----------
  */
-Track::MemoryTracker::MemoryTracker(void) {}
+Track::MemoryTracker::MemoryTracker(void) {
+    WorkingSetSizesPerTrackingEvent.push_back(0); /* Initialize working set size tracking */
+}
 
 
 /*
  * ---------- Drivers ----------
  */
-__attribute__((destructor)) void Track::MemoryTracker::Dump(void)
+void Track::MemoryTracker::Dump(void)
 {
     /*
      * TOP
      *
      * Dump all state in Track::Tracker
      */
+    std::cerr << "=== Track::MemoryTracker::Dump ===" << std::endl;
+    
 
     /*
      * Final allocations

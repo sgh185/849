@@ -20,6 +20,8 @@ namespace Track
      */
     void InitializeTracker(void);
 
+    void DumpTracker(void);
+
     void TrackAllocation(
         void *Pointer, 
         size_t Size
