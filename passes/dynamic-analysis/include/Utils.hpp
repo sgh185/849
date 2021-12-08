@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Configurations.hpp"
 
 using namespace llvm;
@@ -27,5 +29,7 @@ namespace Utils
         Module *M,
         const std::string Name
     );
+
+    void FetchAnnotatedFunctions(GlobalVariable *GV);
 
 }

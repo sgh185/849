@@ -12,8 +12,22 @@ cl::opt<bool> Debug(
     cl::desc("Debugging and print-outs")
 );
 
+cl::opt<bool> Profile(
+    "profile-transform",
+    cl::init(false), 
+    cl::desc("Profiler transform")
+);
+
+cl::opt<bool> Allocate(
+    "allocator-transform",
+    cl::init(false), 
+    cl::desc("Allocator transform")
+);
+
 const std::string PassCommandLineOption = "dynamic-analysis";
 
 const std::string PassDescription = "849 -- Dynamic memory analysis pass";
 
 const std::string PassName = "849MemoryAnalysis";
+
+std::unordered_set<Function *> AnnotatedFunctions = {};

@@ -83,6 +83,12 @@ Function *TrackAllocation = nullptr;
 
 Function *TrackDeallocation = nullptr;
 
+Function *InitializeTracker = nullptr;
+
+Function *Dump = nullptr;
+
+std::unordered_set<Function *> AllProfilerFunctions = {};
+
 void ProfilerFunctions::SetUpProfilerFunctions(Module *M)
 {
     /*
@@ -92,6 +98,13 @@ void ProfilerFunctions::SetUpProfilerFunctions(Module *M)
     ProfilerFunctions::TrackStore = Utils::GetMethod(M, "_ZN5Track10TrackStoreEPv");
     ProfilerFunctions::TrackAllocation = Utils::GetMethod(M, "_ZN5Track15TrackAllocationEPvm");
     ProfilerFunctions::TrackDeallocation = Utils::GetMethod(M, "_ZN5Track17TrackDeallocationEPv");
+    ProfilerFunctions::InitializeTracker = Utils::GetMethod(M, "_ZN5Track17InitializeTrackerEv");
+    ProfilerFunctions::Dump = Utils::GetMethod(M, "_ZN5Track13MemoryTracker4DumpEv");
+    ProfilerFunctions::AllProfilerFunctions = {
+        TrackLoad, TrackStore, TrackAllocation, TrackDeallocation, InitializeTracker, Dump
+    };
+
+
     return;
 }
 
@@ -104,7 +117,13 @@ void ProfilerFunctions::SetUpProfilerFunctions(Module *M)
 namespace AllocatorFunctions
 {
 
-bool SetupComplete;
+bool SetupComplete = false;
+
+bool InjectedInit = false;
+
+CallInst *InitCall = nullptr;
+
+uint64_t NextOffsetToUse = 0;
 
 Function *Constructor = nullptr;
 
@@ -118,6 +137,8 @@ Function *Allocate = nullptr;
 
 Function *AllocateWRI = nullptr;
 
+std::unordered_set<Function *> AllAllocatorFunctions = {};
+
 void AllocatorFunctions::SetUpAllocatorFunctions(Module *M)
 {
     /*
@@ -129,6 +150,16 @@ void AllocatorFunctions::SetUpAllocatorFunctions(Module *M)
     AllocatorFunctions::AddAllocator = Utils::GetMethod(M, "_ZN9Allocator12AddAllocatorEmmm");
     AllocatorFunctions::Allocate = Utils::GetMethod(M, "_ZN9Allocator8AllocateEm");
     AllocatorFunctions::AllocateWRI = Utils::GetMethod(M, "_ZN9Allocator23AllocateWithRuntimeInitEmm");
+    AllocatorFunctions::AllAllocatorFunctions = {
+        AllocatorFunctions::Constructor,
+        AllocatorFunctions::Init,
+        AllocatorFunctions::AllocateCDP,
+        AllocatorFunctions::AddAllocator,
+        AllocatorFunctions::Allocate,
+        AllocatorFunctions::AllocateWRI
+    };
+
+
     return;
 }
 

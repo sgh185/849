@@ -7,8 +7,9 @@
 AllocatorTransformer::AllocatorTransformer(
     Function &F,
     MemoryTracker &MT,
-    StaticWorkingSetAnalysis &WSA
-) : F(F), MT(MT), WSA(WSA) {}
+    StaticWorkingSetAnalysis &WSA,
+    uint64_t NextOffset
+) : NextOffset(NextOffset), F(F), MT(MT), WSA(WSA) {}
 
 
 /*
@@ -22,7 +23,7 @@ void AllocatorTransformer::Transform(void)
      * Inject allocator instrumentation
      */
 
-    uint64_t CurrentOffset = 0; /* Becomes total size */
+    uint64_t CurrentOffset = NextOffset; /* Becomes total size */
 
     /*
      * Find candidates to replace with compiler-directed pools
@@ -32,7 +33,7 @@ void AllocatorTransformer::Transform(void)
         /*
          * Ignore allocations in loops
          */
-        if (WSA.DynamicAllocsInLoops.find(Alloc) != WSA.DynamicAllocsInLoops.end())
+        if (WSA.DynamicAllocsInLoops[Alloc] != nullptr)
             continue;
 
 
@@ -42,6 +43,8 @@ void AllocatorTransformer::Transform(void)
         CompilerDirectedPoolCandidates[Alloc] = CurrentOffset;
         CurrentOffset += Size;
     }
+
+    NextOffset = CurrentOffset;
 
 
     /*
@@ -61,7 +64,7 @@ void AllocatorTransformer::Transform(void)
         /*
          * Found a candidate in a loop!
          */
-        if (WSA.DynamicAllocsInLoops.find(Alloc) != WSA.DynamicAllocsInLoops.end())
+        if (WSA.DynamicAllocsInLoops[Alloc] != nullptr)
         {
             BumpAllocationCandidates[NextBumpID] = { Alloc, Size };
             NextBumpID++;
@@ -82,7 +85,7 @@ void AllocatorTransformer::Transform(void)
         /*
          * Ignore allocations not in loops
          */
-        if (WSA.DynamicAllocsInLoops.find(Alloc) == WSA.DynamicAllocsInLoops.end())
+        if (WSA.DynamicAllocsInLoops[Alloc] == nullptr)
             continue;
 
 
@@ -118,6 +121,8 @@ void AllocatorTransformer::Transform(void)
          * invariant -- if so, we have found a candidate!
          */
         Loop *ParentLoop = WSA.DynamicAllocsInLoops[Alloc];
+        errs() << "AllocationSize : " << *AllocationSize << "\n";
+        errs() << "ParentLoop" << *ParentLoop << "\n";
         if (ParentLoop->isLoopInvariant(AllocationSize))
         {
             BumpAllocationWithRuntimeInitCandidates[NextBumpID] = { Alloc, AllocationSize } ;
@@ -135,19 +140,36 @@ void AllocatorTransformer::Transform(void)
     /*
      * Build call to Init and inject into Constructor
      */
-    Instruction *ConstructorInjectionLocation = AllocatorFunctions::Constructor->getEntryBlock().getFirstNonPHI();
-    IRBuilder<> OperandBuilder{F.getContext()};
-    std::vector<Value *> Operands = {
-        OperandBuilder.getInt64(CurrentOffset) /* Final CurrentOffset is the PoolSize */
-    };
+    Instruction *ConstructorInjectionLocation = AllocatorFunctions::Constructor->getEntryBlock().getTerminator();
+    if (!AllocatorFunctions::InjectedInit)
+    {
+        IRBuilder<> OperandBuilder{F.getContext()};
+        std::vector<Value *> Operands = {
+            OperandBuilder.getInt64(CurrentOffset) /* Final CurrentOffset is the PoolSize */
+        };
 
-    CallInst *NewCall = 
-        _injectAllocatorInstrumentation (
-            AllocatorFunctions::Init,
-            Operands,
-            ConstructorInjectionLocation,
-            "compiler.directed.pool.init"
+        AllocatorFunctions::InitCall = 
+            _injectAllocatorInstrumentation (
+                AllocatorFunctions::Init,
+                Operands,
+                ConstructorInjectionLocation,
+                "compiler.directed.pool.init." + F.getName().str()
+            );
+
+        AllocatorFunctions::InjectedInit = true;
+    }
+    else 
+    {
+        /*
+         * HACK
+         *
+         * Continue replacing the offset operand
+         */
+        IRBuilder<> OperandBuilder{F.getContext()};
+        AllocatorFunctions::InitCall->setOperand(
+            0, OperandBuilder.getInt64(CurrentOffset)
         );
+    }
 
 
     /*
@@ -172,7 +194,7 @@ void AllocatorTransformer::Transform(void)
                 AllocatorFunctions::AllocateCDP,
                 Operands,
                 Alloc,
-                "compiler.directed.pool"
+                "compiler.directed.pool." + F.getName().str()
             );
 
         CallsToReplace[Alloc] = NewCall;
@@ -206,7 +228,7 @@ void AllocatorTransformer::Transform(void)
                 AllocatorFunctions::AddAllocator,
                 OperandsToAddAllocator,
                 ConstructorInjectionLocation,
-                "add.bump.allocator"
+                "add.bump.allocator." + F.getName().str()
             );
 
 
@@ -222,7 +244,7 @@ void AllocatorTransformer::Transform(void)
                 AllocatorFunctions::Allocate,
                 OperandsToAllocate,
                 Alloc,
-                "allocate"
+                "allocate." + F.getName().str()
             );
 
         CallsToReplace[Alloc] = AllocateCall;
@@ -262,7 +284,7 @@ void AllocatorTransformer::Transform(void)
                 AllocatorFunctions::AllocateWRI,
                 Operands,
                 Alloc,
-                "allocate.with.runtime.init"
+                "allocate.with.runtime.init" + F.getName().str()
             );
 
         CallsToReplace[Alloc] = NewCall;
@@ -275,8 +297,8 @@ void AllocatorTransformer::Transform(void)
     std::vector<CallInst *> CallsToErase;
     for (auto &[Old, New] : CallsToReplace)
     {
-        New->replaceAllUsesWith(Old);
-        CallsToErase.push_back(New);
+        Old->replaceAllUsesWith(New);
+        CallsToErase.push_back(Old);
     }
 
     for (auto Call : CallsToErase)

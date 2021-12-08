@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Utils.hpp"
 
 
@@ -78,6 +80,12 @@ namespace ProfilerFunctions
     
     extern Function *TrackDeallocation;
 
+    extern Function *InitializeTracker;
+
+    extern Function *Dump;
+
+    extern std::unordered_set<Function *> AllProfilerFunctions;
+
     void SetUpProfilerFunctions(Module *M);
 }
 
@@ -88,6 +96,12 @@ namespace ProfilerFunctions
 namespace AllocatorFunctions
 {
     extern bool SetupComplete;
+
+    extern bool InjectedInit;
+
+    extern CallInst *InitCall;
+    
+    extern uint64_t NextOffsetToUse;
 
     extern Function *Constructor;
 
@@ -100,6 +114,8 @@ namespace AllocatorFunctions
     extern Function *Allocate;
 
     extern Function *AllocateWRI;
+
+    extern std::unordered_set<Function *> AllAllocatorFunctions;
 
     void SetUpAllocatorFunctions(Module *M);
 }

@@ -19,7 +19,7 @@ void MemoryTracker::Track(void)
      * Perform all allocation and deallocation tracking for @this->F.
      * This is currently constrained to libc/libstdc++ malloc() and free().
      * 
-     * Then, track all memory instructions (stores, loads)
+     * Then, track all memory instructions (stores, loads, allocas)
      */
     _trackDynamicMemoryCalls(
         DynMemoryKind::Allocation,

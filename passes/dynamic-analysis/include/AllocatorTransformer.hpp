@@ -1,3 +1,6 @@
+#pragma once
+
+#include "ProfilerTransformer.hpp"
 #include "StaticWorkingSetAnalysis.hpp"
 
 #define DEFAULT_POOL_SIZE 32
@@ -12,7 +15,8 @@ public:
     AllocatorTransformer(
         Function &F,
         MemoryTracker &MT,
-        StaticWorkingSetAnalysis &WSA
+        StaticWorkingSetAnalysis &WSA,
+        uint64_t NextOffset
     );
 
 
@@ -22,6 +26,12 @@ public:
     void Transform(void);
 
     // void Dump(void);
+
+
+    /*
+     * Public state
+     */
+    uint64_t NextOffset;
     
 
 private:

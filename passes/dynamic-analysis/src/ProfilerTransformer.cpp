@@ -19,8 +19,83 @@ void ProfilerTransformer::Transform(void)
      *
      * Inject profiler instrumentation for each tracked instruction
      * from the MemoryTracker (@this->MT). These include allocations,
-     * deallocations, loads, and stores.
+     * deallocations, allocas, loads, and stores.
      */
+
+    bool HandleMemoryInst = false;
+
+    /*
+     * Handle stack allocations
+     */
+    auto Allocas = MT.GetTrackedAllocas();
+    for (auto Alloca : Allocas)
+    { 
+        continue;
+        /*
+         * Build operand list (Pointer, Size) for the call to inject
+         */
+
+        /* 
+         * Fetch pointer to memory as void *
+         */
+        IRBuilder<> Builder{Alloca->getNextNode()};
+        Value *PointerToMemory = 
+            Builder.CreatePointerCast(
+                Alloca,
+                Builder.getInt8PtrTy()
+            );
+
+
+        /*
+         * Fetch allocation size as i64
+         */
+        DataLayout DL(F.getParent());
+        Optional<TypeSize> TySize = Alloca->getAllocationSizeInBits(DL);
+        uint64_t AllocationSizeConst =
+            (TySize) ?
+            ((TySize->getFixedSize()) / 8) : 0 ;
+
+        Value *AllocationSize;
+        if (AllocationSize) AllocationSize = Builder.getInt64(AllocationSizeConst);
+        else
+        {
+            Value *AllocaOp = Alloca->getOperand(0);
+            assert(
+                true
+                && !isa<Constant>(AllocaOp)
+                && AllocaOp->getType()->isIntOrIntVectorTy()
+            ); /* Needs to be an integer variable */
+
+            AllocationSize = 
+                Builder.CreateIntCast(
+                    AllocaOp,
+                    Builder.getInt64Ty(),
+                    false /* Not signed */
+                );
+        }
+
+        std::vector<Value *> Operands = {
+            PointerToMemory, AllocationSize
+        };
+
+
+        /*
+         * Build a call instruction to the function Track::TrackAllocation
+         * and inject it under the alloc instruction
+         */
+        Instruction *InjectionLocation = 
+            (isa<Instruction>(PointerToMemory)) ?
+            (cast<Instruction>(PointerToMemory)) :
+            (Alloca) ;
+
+        _injectProfilerInstrumentation(
+            ProfilerFunctions::TrackAllocation,
+            Operands,
+            InjectionLocation,
+            "alloc.inject"
+        );  
+    }
+
 
     /*
      * Handle loads
@@ -28,6 +103,8 @@ void ProfilerTransformer::Transform(void)
     auto Loads = MT.GetTrackedLoads();
     for (auto Load : Loads)
     {
+        if (!HandleMemoryInst) continue;
+
         /*
          * Fetch the pointer operand of the load
          */
@@ -51,9 +128,11 @@ void ProfilerTransformer::Transform(void)
     /*
      * Handle stores
      */
-    auto Stores = MT.GetTrackedLoads();
+    auto Stores = MT.GetTrackedStores();
     for (auto Store : Stores)
     {
+        if (!HandleMemoryInst) continue;
+
         /*
          * Fetch the pointer operand of the store
          */

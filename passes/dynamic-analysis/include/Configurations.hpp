@@ -65,6 +65,10 @@ extern cl::opt<bool> ExitingOnInit;
 
 extern cl::opt<bool> Debug;
 
+extern cl::opt<bool> Profile;
+
+extern cl::opt<bool> Allocate;
+
 
 /*
  * Pass name, description
@@ -74,6 +78,12 @@ extern const std::string PassCommandLineOption;
 extern const std::string PassDescription;
 
 extern const std::string PassName;
+
+
+/*
+ * Functions to analyze
+ */
+extern std::unordered_set<Function *> AnnotatedFunctions;
 
 
 /*
@@ -99,4 +109,8 @@ public:
 
 
 #define DEBUG_INFO if (Debug) errs() 
+
+
+#define ANNOTATION "llvm.global.annotations"
+#define ANNOTATION_ANALYZE "analyze"
 

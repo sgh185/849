@@ -1,4 +1,4 @@
-#include "include/StaticWorkingSetAnalysis.hpp"
+#include "include/AllocatorTransformer.hpp"
 
 namespace ThePass
 {
@@ -18,7 +18,32 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
 
 
     /*
-     * Setup if necessary
+     * Check command line condition
+     */
+    if (Profile && Allocate)
+    {
+        errs() << "MemoryAnalysis849Pass::run: Can't run profile and allocator transformations in one pass!\n";
+        abort();
+    }
+
+    
+    Allocate = false;
+    Profile = true;
+
+
+    /*
+     * Record annotated functions
+     */
+    if (!AnnotatedFunctions.size())
+    {
+        GlobalVariable *Annotation = F.getParent()->getGlobalVariable(ANNOTATION);
+        assert(Annotation && "'analyze' attribute not found!");
+        Utils::FetchAnnotatedFunctions(Annotation);
+    }
+
+
+    /*
+     * Setup if necessary -- based on different modes
      */
     if (!MemoryFunctions::SetupComplete)
     {
@@ -26,19 +51,21 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
         MemoryFunctions::SetupComplete = true;
     }
 
-    if (!AllocatorFunctions::SetupComplete)
+    if (true
+        && Profile
+        && !ProfilerFunctions::SetupComplete)
+    {
+        ProfilerFunctions::SetUpProfilerFunctions(F.getParent());
+        ProfilerFunctions::SetupComplete = true;
+    }
+
+    if (true
+        && Allocate
+        && !AllocatorFunctions::SetupComplete)
     {
         AllocatorFunctions::SetUpAllocatorFunctions(F.getParent());
         AllocatorFunctions::SetupComplete = true;
     }
-
-
-
-    /*
-     * Fetch analysis
-     */
-    auto &LI = AM.getResult<LoopAnalysis>(F);
-    auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
 
 
     /*
@@ -46,6 +73,14 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
      */
     if (!Utils::IsViableFunction(F)) return PreservedAnalyses::all();
     errs() << "---------- " << F.getName() << " ----------\n";
+    Utils::PrintPassArguments();
+
+
+    /*
+     * Fetch analysis
+     */
+    auto &LI = AM.getResult<LoopAnalysis>(F);
+    auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
     
 
     /*
@@ -54,6 +89,19 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
     auto MT = MemoryTracker(F);
     MT.Track();
     MT.Dump();
+
+
+    /* 
+     * Profiler instrumentation
+     */
+    if (Profile)
+    {
+        auto PT = ProfilerTransformer(F, MT);
+        PT.Transform();
+
+
+        return PreservedAnalyses::all(); /* Suspicious */
+    }
 
 
     /*
@@ -65,9 +113,26 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
 
 
     /*
+     * Execute allocator transformation
+     */
+    if (Allocate)
+    {
+        auto AT = AllocatorTransformer(
+            F, MT, WSA, 
+            AllocatorFunctions::NextOffsetToUse
+        );
+        AT.Transform();
+        AllocatorFunctions::NextOffsetToUse = AT.NextOffset;
+
+
+        return PreservedAnalyses::all(); /* Suspicious */
+    }
+
+
+    /*
      * Status
      */
-    return PreservedAnalyses::all();;
+    return PreservedAnalyses::all();
 }
 
 
