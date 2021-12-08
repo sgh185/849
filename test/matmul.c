@@ -1,7 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "utils.h"
 
+#define AI __attribute__((always_inline, annotate("analyze")))
+#define ANALYZE __attribute__((annotate("analyze")))  
+
+#define PERSIST 1
 #define DEBUG 0
 #define DEBUG_PRINT if (DEBUG) printf
 #define DEBUG_ASSERT if (DEBUG) assert
@@ -18,13 +23,12 @@
  * co-design.
  */ 
 
-#define A_1 50
-#define A_2 40
-#define B_1 40
-#define B_2 100
+#define A_1 60
+#define A_2 30
+#define B_1 30
+#define B_2 80
 
-
-__attribute__((always_inline))
+AI
 int **multiply(
     int **A,
     int **B,
@@ -62,6 +66,7 @@ int **multiply(
 }
 
 
+ANALYZE
 int main(void)
 {
     /*
@@ -80,6 +85,13 @@ int main(void)
             A_1, A_2,
             B_1, B_2
         );
+
+
+#if PERSIST
+    for (int i = 0 ; i < A_1 ; i++)
+        for (int j = 0 ; j < B_2 ; j++)
+            printf("%d ", result[i][j]); 
+#endif
 
 
     return 0;
