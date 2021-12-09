@@ -4,10 +4,24 @@
 
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage[parfill]{parskip}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 
 \pdfpagewidth=8.5in
 \pdfpageheight=11in
+
+
+\def\tricolfig#1{\includegraphics[width=2.2in]{#1}}
+\def\triplecolfig#1{\includegraphics[width=0.32\textwidth]{#1}}
+\def\smallcolfig#1{\includegraphics[width=2.0in]{#1}}
+\def\smallercolfig#1{\includegraphics[width=0.75\columnwidth]{#1}}
+\def\mediumcolfig#1{\includegraphics[width=0.9\columnwidth]{#1}}
+\def\colfig#1{\includegraphics[width=\columnwidth]{#1}}
+\def\pagefig#1{\includegraphics[width=0.75\textwidth]{#1}}
+\def\suspcolfig#1{\includegraphics[width=2.0in]{#1}}
+\def\perfcolfig#1{\smallercolfig{#1}}
+
 
 
 \def\crcd{compiler-runtime co-design}
@@ -38,6 +52,30 @@ and optimize \textit{dynamic memory usage} for small FaaS workloads.
 \section{Introduction/Background}
 
 \section{Design}
+The design of the system consists of three major components : 1) a \textit{profiler},
+2) \textit{static analyses} in the compiler, and 3) a \textit{custom memory allocator}.
+The first and third components consist of compiler instrumentation coupled with an 
+integrated runtime. These compoents are described in the following subsections
+in detail. 
+
+\begin{figure}
+    \centerline{\pagefig{figs/sys.pdf}}
+    \caption{System overview and compilation pipeline. }  
+	\label{fig:sys}
+\end{figure}
+
+An overview of the system and compilation pipeline is show in Figure~\ref{fig:sys}. The 
+first pass over an example workload (\texttt{app.c}) consists of static analyses and 
+profiling. The second pass over \texttt{app.c} instruments the program with the custom
+allocator using the results from the static analyses (and optionally the profiler). The
+outputs from this compilation pipeline include an instrumented application (\texttt{app.exe})
+statistics about dynamic memory working set size.
+
+\subsection{Profiler}
+
+\subsection{Static Analyses}
+
+\subsection{Custom Allocator}
 
 \section{Implementation}
 
