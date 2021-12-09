@@ -88,8 +88,8 @@ and statistics about \DWS\ (total size for all dynamic \ALLS).
 \subsection{Profiler}
 The profiler has the goal of understanding information about dynamic memory \ALLS\ and 
 \DALLS\ during execution (for instance, the number of \ALLS\, \DWS\, common \ALL 
-sizes, etc.) as well as standard information about the "hotness" of functions and
-loops at runtime. Using this data, the profiler can inform the compiler during 
+sizes, etc.) as well as typical information about critical paths or the "hotness" of functions and
+loops at runtime that is often use to aid optimization [?]. Using this data, the profiler can inform the compiler during 
 instrumentation in the second pass over the application (see \ref{ca}). It can also 
 inform the user with a better estimate of memory usage for a future FaaS instance or 
 function invocation.
@@ -114,6 +114,13 @@ instrumentation is shown in Figure~\ref{fig:pins}.
         and \texttt{free}}  
 	    \label{fig:pins}
     \end{minipage}\hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.77\textwidth]{figs/sizes.png} 
+        \caption{Example allocations that the static analysis can target in the 
+        context of simplified LLVM IR and \textit{libc} \texttt{malloc}}  
+	    \label{fig:sizes}
+    \end{minipage}\hfill
 \end{figure}
 
 While $W$ runs, the profiler tracks each change to the \DWS\ over its entire execution 
@@ -122,7 +129,7 @@ and average \DWS\ for $W$ and outputs the data to the user and to the compiler f
 use. All profiler information can be optionally used by the custom allocator component of
 the \crcd\ (see \ref{ca}).
 
-\subsection{Static Analyses}
+\subsection{Static Analyses} \label{sa}
 The system also supports static analyses of \ALLS\ and \DALLS\ in the IR for workload $W$. 
 In particular, the compiler analyzes 1) \ALL\ sizes for all \ALLS\, 2) loops to unroll 
 and functions to inline so that 1) is more feasible to analyze, and 3) uses of \ALL\ and 
@@ -137,13 +144,14 @@ An "easy-to-deduce" or \textit{statically analyzable} \SIZE\ is one that is
 simply a constant integer. All other \SIZES\ are \textit{analyzable with
 assistance}, where the size can apparently be deduced during runtime. These 
 categories are mutually exclusive. The compiler records all statically analyzable 
-\SIZES .
+\SIZES . An example is shown in Line 2 of Figure~\ref{fig:sizes}.
 
 Some \SIZES\ that are analyzable with assistance are worth recording, however. In
 particular, if an \SIZE\ is dependent on function arguments, the function (and
 its parent functions) can be continually inlined until the size is statically
 analyzable. Consequently, the compiler marks functions that are candidates for
-aggressive inlining (compared to a standard inliner in \texttt{-O3}). At an
+aggressive inlining (compared to a standard inliner in \texttt{-O3}). An example of
+this is shown in Line 3 of Figure ~\ref{fig:sizes}. At an
 extreme, aggressive inlining can reach a point where it may be beneficial to
 inline the entry-point function of $W$. This is especially common in small 
 FaaS workloads where \ALLS\ towards the beginning of the workload havew \SIZES\
@@ -160,7 +168,7 @@ the \ALLS\ can be merged or replaced with one of the methods from the custom
 allocator. It is also important that the size is dependent on a loop-invariant 
 value, or else the compiler cannot affirmatively analyze multiples of the size or
 determine an appropriate unroll factor (unrolling too much without knowledge of
-the \SIZE\ may be sub-optimal).
+the \SIZE\ may be sub-optimal). An example of this is shown in Line 8 of Figure ~\ref{fig:sizes}
 
 Finally, the compiler analyzes the uses of \ALLS , especially if they are used
 in explicit \texttt{store} operations in the IR. An \ALL\ pointer that is stored
@@ -172,6 +180,44 @@ are recorded. All \ALLS\ and \DALLS\ that cannot be statically analyzed using
 memory alias analysis (i.e "must alias" conditions) or def-use chains are flagged.
 
 \subsection{Custom Allocator} \label{ca}
+The final component of the system is a custom memory allocator, managed by both
+the compiler and runtime and designed with consideration of FaaS characteristics.
+In particular, the allocator aims to reduce raw \ALL\ and \DALL\ time, consolidate 
+\ALLS\ , and utilize compiler analysis to optimize dynamic memory overheads. 
+
+The allocator primarly takes the static analyses (see \ref{sa})
+as input to replace as many \ALLS\ and \DALLS\ with invocations to the allocator. 
+First, \ALLS\ with statically analyzable \SIZES\ are prime candidates to be 
+\textit{pre-allocated} because all the information needed to allocate is known at
+compile-time. These \ALLS\ are placed into a compiler-directed memory pool that is
+allocated by the runtime in parallel to FaaS instance startup and before the entry-point function 
+of the workload, $W$, begins. The size of the pool is the sum of all statically 
+analyzable \SIZES\ of the selected \ALLS . As a result, the \ALL\ function calls are 
+replaced by load of a compiler-determined offset of the base address of the pool.
+An \ALL\ can only be selected for this transformation if it is not flagged by 
+the escapes analysis (see the third analysis in \ref{sa}) \textit{and} the compiler 
+can deduce the number of invocations of its parent function. Otherwise, the data
+in memory or the pointer itself may be overwritten accidentally. The latter condition
+can be alleviated with aggressive inlining and function versioning. An example of 
+this transformation is shown in Figure~\ref{fig:pool}. There are a number of 
+benefits to this approach: 1) alleviating function call overheads, 2) enabling 
+prefetching of allocation pointer address, 3) hiding allocation overhead by performing 
+it before $W$ even begins.  
+
+\begin{figure}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.77\textwidth]{figs/pool.png} 
+        \caption{Example allocations (top) transformed to fetch from the compiler-directed
+        memory pool (bottom; here, wrapped into the function \texttt{pool\_fetch}). The 
+        basic functionality of the pool is shown to the right. In context of simplified LLVM 
+        IR and \textit{libc} \texttt{malloc}}  
+	    \label{fig:pool}
+    \end{minipage}\hfill
+\end{figure}
+
+
 
 \section{Implementation}
 
