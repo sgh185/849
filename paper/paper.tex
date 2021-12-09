@@ -5,6 +5,8 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{titlesec}
+\usepackage{lipsum}
+\usepackage{mwe}
 \usepackage[parfill]{parskip}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 
@@ -76,7 +78,7 @@ first pass over an example workload (\texttt{app.c}) consists of static analyses
 profiling. The second pass over \texttt{app.c} instruments the program with the custom
 allocator using the results from the static analyses (and optionally the profiler). The
 outputs from this compilation pipeline include an instrumented application (\texttt{app.exe})
-and statistics about \DWS\.
+and statistics about \DWS\ (total size for all dynamic \ALLS).
 
 \subsection{Profiler}
 The profiler has the goal of understanding information about dynamic memory \ALLS\ and 
@@ -88,17 +90,31 @@ inform the user with a better estimate of memory usage for a future FaaS instanc
 function invocation.
 
 The profiler tracks all \ALLS and \DALLS of some workload, $W$, at runtime. This is 
-accomplished by instrumenting all explicit dynamic memory \ALL\ and \DALL\ function 
+accomplished by using the compiler to instrument all explicit dynamic memory \ALL\ and \DALL\ function 
 calls in the IR for $W$ with \textit{callback} functions to a profiler runtime.
 Two callbacks, \texttt{TrackAllocation(ptr, size)} and \texttt{TrackDeallocation(ptr)}, are 
 sufficient to achieve all tracking. \texttt{TrackAllocation} takes a pointer to an allocation (\texttt{ptr}) and 
 the size of the allocation (\texttt{size}) as inputs and records the pair in a table in the 
 profiler's runtime. \texttt{TrackDeallocation} simply takes a pointer to an allocation (\texttt{ptr}) as
-input and removes the entry from the profiler runtime's table. 
+input and removes the entry from the profiler runtime's table. An example of this 
+instrumentation is shown in Figure~\ref{fig:pins}.
 
-While $W$ runs, the profiler tracks each change \DWS\ over its entire execution. Using 
-this information, the profiler calculates maximum and average \DWS\ for $W$ and outputs
-the data to the user and to the compiler for future use.
+\begin{figure}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.9\textwidth]{figs/pins.png} 
+        \caption{Example compiler instrumentation for profiler callbacks in the 
+        context of simplified LLVM IR and \textit{libc} \texttt{malloc}
+        and \texttt{free}}  
+	    \label{fig:pins}
+    \end{minipage}\hfill
+\end{figure}
+
+While $W$ runs, the profiler tracks each change to the \DWS\ over its entire execution 
+whenever a callback is invoked. Using this information, the profiler calculates maximum 
+and average \DWS\ for $W$ and outputs the data to the user and to the compiler for future 
+use.
 
 \subsection{Static Analyses}
 
