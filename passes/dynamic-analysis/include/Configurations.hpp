@@ -31,6 +31,7 @@
 #include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Vectorize/LoopVectorizationLegality.h"
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/PostDominators.h"

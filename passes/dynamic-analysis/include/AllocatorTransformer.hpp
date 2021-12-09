@@ -55,13 +55,13 @@ private:
     > CompilerDirectedPoolCandidates;
 
     std::unordered_map<
-        uint64_t, /* BumpID */
-        std::pair<CallInst * /* Alloc */, uint64_t /* Block size */>
+        uint64_t, /* BumpID/BlockSize */
+        std::unordered_set<CallInst *> /* Allocatiions */
     > BumpAllocationCandidates;
 
     std::unordered_map<
-        uint64_t, /* BumpID */
-        std::pair<CallInst * /* Alloc */, Value * /* Block size */>
+        Value *, /* BumpID/BlockSize as a variable */
+        std::unordered_set<CallInst *> /* Allocatiions */
     > BumpAllocationWithRuntimeInitCandidates;
 
     std::unordered_set<Instruction *> InstrumentedInstructions;

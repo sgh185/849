@@ -139,17 +139,19 @@ Function *AllocateWRI = nullptr;
 
 std::unordered_set<Function *> AllAllocatorFunctions = {};
 
+std::unordered_set<uint64_t> AddAllocatorSizes = {};
+
 void AllocatorFunctions::SetUpAllocatorFunctions(Module *M)
 {
     /*
-     * TOP --- Fetch the profiler methods
+     * TOP --- Fetch the allocator methods
      */
     AllocatorFunctions::Constructor = Utils::GetMethod(M, "_ZN9Allocator11ConstructorEv");
     AllocatorFunctions::Init = Utils::GetMethod(M, "_ZN9Allocator4InitEm");
     AllocatorFunctions::AllocateCDP = Utils::GetMethod(M, "_ZN9Allocator32AllocateFromCompilerDirectedPoolEm");
-    AllocatorFunctions::AddAllocator = Utils::GetMethod(M, "_ZN9Allocator12AddAllocatorEmmm");
+    AllocatorFunctions::AddAllocator = Utils::GetMethod(M, "_ZN9Allocator12AddAllocatorEmm");
     AllocatorFunctions::Allocate = Utils::GetMethod(M, "_ZN9Allocator8AllocateEm");
-    AllocatorFunctions::AllocateWRI = Utils::GetMethod(M, "_ZN9Allocator23AllocateWithRuntimeInitEmm");
+    AllocatorFunctions::AllocateWRI = Utils::GetMethod(M, "_ZN9Allocator23AllocateWithRuntimeInitEm");
     AllocatorFunctions::AllAllocatorFunctions = {
         AllocatorFunctions::Constructor,
         AllocatorFunctions::Init,
@@ -159,6 +161,14 @@ void AllocatorFunctions::SetUpAllocatorFunctions(Module *M)
         AllocatorFunctions::AllocateWRI
     };
 
+    
+    /*
+     * Add constructor to llvm.global.ctors
+     */
+    llvm::appendToGlobalCtors(
+        *M, AllocatorFunctions::Constructor, INT_MAX
+    );
+    
 
     return;
 }

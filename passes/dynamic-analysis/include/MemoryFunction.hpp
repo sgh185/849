@@ -117,5 +117,7 @@ namespace AllocatorFunctions
 
     extern std::unordered_set<Function *> AllAllocatorFunctions;
 
+    extern std::unordered_set<uint64_t> AddAllocatorSizes;
+
     void SetUpAllocatorFunctions(Module *M);
 }

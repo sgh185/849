@@ -21,6 +21,8 @@ void AllocatorTransformer::Transform(void)
      * TOP
      *
      * Inject allocator instrumentation
+     * 
+     * NOTE --- Toss free() instrumentation for now
      */
 
     uint64_t CurrentOffset = NextOffset; /* Becomes total size */
@@ -48,28 +50,14 @@ void AllocatorTransformer::Transform(void)
 
 
     /*
-     * Setup for bump allocators
-     */
-    uint64_t NextBumpID = 0;
-
-
-    /*
      * Find candidates that simply need allocations from bump allocator 
      * and nothing else (no runtime init)
      * 
      * These will be allocations in loops with deduced object size
      */
     for (auto const &[Alloc, Size] : WSA.DynamicAllocObjectSize) /* Known allocation size */
-    {
-        /*
-         * Found a candidate in a loop!
-         */
-        if (WSA.DynamicAllocsInLoops[Alloc] != nullptr)
-        {
-            BumpAllocationCandidates[NextBumpID] = { Alloc, Size };
-            NextBumpID++;
-        }   
-    }
+        if (WSA.DynamicAllocsInLoops[Alloc] != nullptr) /* Found loop candidate! */
+            BumpAllocationCandidates[Size].insert(Alloc);
 
 
     /*
@@ -124,10 +112,7 @@ void AllocatorTransformer::Transform(void)
         errs() << "AllocationSize : " << *AllocationSize << "\n";
         errs() << "ParentLoop" << *ParentLoop << "\n";
         if (ParentLoop->isLoopInvariant(AllocationSize))
-        {
-            BumpAllocationWithRuntimeInitCandidates[NextBumpID] = { Alloc, AllocationSize } ;
-            NextBumpID++;
-        }   
+            BumpAllocationWithRuntimeInitCandidates[AllocationSize].insert(Alloc);
     }
 
 
@@ -204,90 +189,93 @@ void AllocatorTransformer::Transform(void)
     /*
      * Build calls to AddAllocator and Allocate
      */
-    for (auto const &[BumpID, Pair] : BumpAllocationCandidates)
+    for (auto const &[BumpIDBlockSize, Allocs] : BumpAllocationCandidates)
     {
-        /*
-         * Fetch pair
-         */
-        CallInst *Alloc = Pair.first;
-        uint64_t BlockSize = Pair.second;
-
-
         /* 
-         * Build call to AddAllocator
+         * Build call to AddAllocator, only if it hasn't been added already
          */
         IRBuilder<> OperandBuilder{F.getContext()};
-        std::vector<Value *> OperandsToAddAllocator = {
-            OperandBuilder.getInt64(BumpID),
-            OperandBuilder.getInt64(BlockSize),
-            OperandBuilder.getInt64(DEFAULT_POOL_SIZE),
-        };
+        if (AllocatorFunctions::AddAllocatorSizes.find(BumpIDBlockSize) == AllocatorFunctions::AddAllocatorSizes.end())
+        {
+            std::vector<Value *> OperandsToAddAllocator = {
+                OperandBuilder.getInt64(BumpIDBlockSize),
+                OperandBuilder.getInt64(DEFAULT_POOL_SIZE),
+            };
 
-        CallInst *AddAllocatorCall = 
-            _injectAllocatorInstrumentation (
-                AllocatorFunctions::AddAllocator,
-                OperandsToAddAllocator,
-                ConstructorInjectionLocation,
-                "add.bump.allocator." + F.getName().str()
-            );
+            errs() << "AllocatorFunctions::AddAllocator: " << AllocatorFunctions::AddAllocator->getName() << "\n";
+            for (auto Val : OperandsToAddAllocator)
+                errs() << "Val: " << *Val << "\n";
+            errs() << "ConstructorInjectionLocation: " << *ConstructorInjectionLocation << "\n";
+
+            CallInst *AddAllocatorCall = 
+                _injectAllocatorInstrumentation (
+                    AllocatorFunctions::AddAllocator,
+                    OperandsToAddAllocator,
+                    ConstructorInjectionLocation,
+                    "add.bump.allocator." + F.getName().str()
+                );
+
+            AllocatorFunctions::AddAllocatorSizes.insert(BumpIDBlockSize);
+        }
 
 
-        /* 
-         * Build call to Allocate
-         */
-        std::vector<Value *> OperandsToAllocate = {
-            OperandBuilder.getInt64(BumpID)
-        };
+        /*
+         * Build calls to Allocate for each allocation
+         */ 
+        for (auto Alloc : Allocs)
+        {
+            /*
+             * Build operands
+             */
+            std::vector<Value *> OperandsToAllocate = {
+                OperandBuilder.getInt64(BumpIDBlockSize)
+            };
 
-        CallInst *AllocateCall = 
-            _injectAllocatorInstrumentation (
-                AllocatorFunctions::Allocate,
-                OperandsToAllocate,
-                Alloc,
-                "allocate." + F.getName().str()
-            );
+            CallInst *AllocateCall = 
+                _injectAllocatorInstrumentation (
+                    AllocatorFunctions::Allocate,
+                    OperandsToAllocate,
+                    Alloc,
+                    "allocate." + F.getName().str()
+                );
 
-        CallsToReplace[Alloc] = AllocateCall;
+            CallsToReplace[Alloc] = AllocateCall;
+        }
     }
 
 
     /*
      * Build calls to AllocateWithRuntimeInit
      */
-    for (auto const &[BumpID, Pair] : BumpAllocationWithRuntimeInitCandidates)
+    for (auto const &[BumpIDBlockSize, Allocs] : BumpAllocationWithRuntimeInitCandidates)
     {
-        /*
-         * Fetch pair
-         */
-        CallInst *Alloc = Pair.first;
-        Value *BlockSize = Pair.second;
+        for (auto Alloc : Allocs)
+        {
+            /* 
+             * Set up allocation size cast to i64, build operands, and build call
+             */
+            IRBuilder<> OperandBuilder{Alloc};
+            Value *CastBlockSize = 
+                OperandBuilder.CreateIntCast(
+                    BumpIDBlockSize,
+                    OperandBuilder.getInt64Ty(),
+                    false
+                );
 
+            std::vector<Value *> Operands = {
+                CastBlockSize
+            };
 
-        /* 
-         * Build call to AddAllocator
-         */
-        IRBuilder<> OperandBuilder{Alloc};
-        Value *CastBlockSize = 
-            OperandBuilder.CreateIntCast(
-                BlockSize,
-                OperandBuilder.getInt64Ty(),
-                false
-            );
+            CallInst *NewCall = 
+                _injectAllocatorInstrumentation (
+                    AllocatorFunctions::AllocateWRI,
+                    Operands,
+                    Alloc,
+                    "allocate.with.runtime.init" + F.getName().str()
+                );
 
-        std::vector<Value *> Operands = {
-            OperandBuilder.getInt64(BumpID),
-            CastBlockSize
-        };
-
-        CallInst *NewCall = 
-            _injectAllocatorInstrumentation (
-                AllocatorFunctions::AllocateWRI,
-                Operands,
-                Alloc,
-                "allocate.with.runtime.init" + F.getName().str()
-            );
-
-        CallsToReplace[Alloc] = NewCall;
+            CallsToReplace[Alloc] = NewCall;
+        }
     }
 
 

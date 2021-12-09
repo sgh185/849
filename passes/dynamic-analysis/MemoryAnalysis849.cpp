@@ -27,8 +27,8 @@ PreservedAnalyses MemoryAnalysis849Pass::run(
     }
 
     
-    Allocate = false;
-    Profile = true;
+    Allocate = true;
+    Profile = false;
 
 
     /*
