@@ -3,7 +3,9 @@
 \usepackage[letterpaper,top=2cm,bottom=2cm,left=2cm,right=2cm,marginparwidth=1.75cm]{geometry}
 
 \usepackage{amsmath}
+\usepackage{multirow}
 \usepackage{graphicx}
+\usepackage{array}
 \usepackage{titlesec}
 \usepackage{lipsum}
 \usepackage{mwe}
@@ -70,7 +72,7 @@ transformations operate on the \textit{intermediate representation} (IR) of the 
 where standard compiler optimizations are performed. These components are described in 
 the following subsections in detail. 
 
-\begin{figure}
+\begin{figure}[htp]
     \centerline{\pagefig{figs/sys.pdf}}
     \caption{System overview and compilation pipeline. }  
 	\label{fig:sys}
@@ -116,7 +118,7 @@ instrumentation is shown in Figure~\ref{fig:pins}.
     \end{minipage}\hfill
     \begin{minipage}{0.45\textwidth}
         \centering
-        \includegraphics[width=0.77\textwidth]{figs/sizes.png} 
+        \includegraphics[width=0.70\textwidth]{figs/sizes.png} 
         \caption{Example allocations that the static analysis can target in the 
         context of simplified LLVM IR and \textit{libc} \texttt{malloc}}  
 	    \label{fig:sizes}
@@ -186,7 +188,8 @@ In particular, the allocator aims to reduce raw \ALL\ and \DALL\ time, consolida
 \ALLS\ , and utilize compiler analysis to optimize dynamic memory overheads. 
 
 The allocator primarly takes the static analyses (see \ref{sa})
-as input to replace as many \ALLS\ and \DALLS\ with invocations to the allocator. 
+as input to replace as many \ALLS\ and \DALLS\ with invocations to the allocator. If
+an allocation is not selected as a candidate for any transformations, it is left unchanged.
 First, \ALLS\ with statically analyzable \SIZES\ are prime candidates to be 
 \textit{pre-allocated} because all the information needed to allocate is known at
 compile-time. These \ALLS\ are placed into a \textit{compiler-directed memory pool} that is
@@ -233,9 +236,7 @@ be transformed to invoke \texttt{AllocateFromBumpWithRuntimeInit}, since those s
 a default number of of entries to allocate from before expanding to more pools. Using
 profile information, the number of entries could be tuned for each specific bump allocator.
 
-\begin{figure}
-    \centering
-    \begin{minipage}{0.45\textwidth}
+\begin{figure} [htp]
         \centering
         \includegraphics[width=0.77\textwidth]{figs/pool.png} 
         \caption{Example allocations (top) transformed to fetch from the compiler-directed
@@ -243,7 +244,6 @@ profile information, the number of entries could be tuned for each specific bump
         basic functionality of the pool is shown to the right. In context of simplified LLVM 
         IR and \textit{libc} \texttt{malloc}}  
 	    \label{fig:pool}
-    \end{minipage}\hfill
 \end{figure}
 
 \section{Implementation}
@@ -257,10 +257,10 @@ containing (a default) 32 entries (each entry is sized to the block size). If th
 in the pool, another pool is allocated. Pools for a bump allocatore are also stored in a 
 red-black tree (\texttt{std::map}), mostly to aid \DALLS .
 
-Initialization for the compiler-directed memory pool and bump allocators with known block size at 
-compile-time are injected by the compiler into a runtime function marked with the attribute 
-\texttt{constructor}. Although initialization is theoretically most performant when done in parallel
-to FaaS startup, this was not implemented in the system prototype.
+Initialization for the compiler-directed memory pool and bump allocators (with known block size at 
+compile-time) are injected by the compiler into a runtime function marked with the \texttt{constructor}
+attribute. Although initialization is theoretically most performant when done in parallel
+to FaaS startup, this was not implemented in the prototype.
 
 Finally, all workloads are implemented in \texttt{C} and only use \textit{libc} \texttt{malloc} and 
 \texttt{free}. Although most FaaS workloads are implemented in higher-level languages, the 
@@ -269,6 +269,65 @@ runtime to target, as all \ALLS\ and \DALLS\ are obviously explicit. Targeting h
 languages remains a future work.
 
 \section{Evaluation}
+To evaluate the prototype, four kernels (matrix multiplication, compressed-row-storage conversion,
+breadth first traversal, and Huffman coding -- see Figure~\ref{fig:apps}) were used. All testing
+was performed on a 28-Core Intel Xeon CPU E5-2690 v4 machine. All runs were single-threaded.  
+
+\begin{figure}
+        \small
+        \centering
+        \begin{tabular}{ | m{5cm} | m{7cm} | } 
+          \hline
+            Matrix Multiplication & Naive algorithm ; [60 x 30] x [30 x 120] \\ 
+          \hline
+            Compressed-Row-Storage (CSR) & Converts a [500 x 400] matrix to CSR form \\ 
+          \hline
+            Breadth First Traversal & Traversal on graph with 1000 vertices and records the traversal ; graph represented with adjancency matrix  \\ 
+          \hline
+            Huffman Coding & Builds a Huffman Tree for a block of "Lorem Ipsum" text \\ 
+          \hline
+        \end{tabular}
+        \caption{Kernels used for evaluation.}
+        \label{fig:apps}
+\end{figure}
+
+We assess the compiler transforms for the custom allocator both statically and dynamically. Figure X
+shows the number of eligible static \ALLS\ in the baseline IR for each kernel and the number of \ALLS\
+that were transformed to invoke the allocator. 
+
+Next, we evaluate the performance of the transformed binaries against the baseline binaries (i.e.
+without transformation, compiled straight from source code) for each kernel. Each kernel was 
+run 10 times via \texttt{perf stat} and the cycle counts were recorded. Figure X shows the comparative
+overhead ratio (in terms of cycles).
+
+Finally, we break down the execution times for each major piece of the allocator runtime and
+highlight worst-case observed times (also in cycles). Figure X shows this for each essential
+method of the runtime. 
+
+\begin{figure}
+        \small
+        \centering
+        \begin{tabular}{ | m{5cm} | m{9cm} | m{3cm} | } 
+          \hline
+            \texttt{Init} & Initialize the global allocator (that manages bump allocators) and compiler directed pool & 20418 \\ 
+          \hline
+            \texttt{AddAllocator} & Initialize a new bump allocator and add it to the global allocator & 27170 \\ 
+          \hline
+            \texttt{AllocateFromPool} & Fetching a pointer from the compiler-directed memory pool (wrapped as a function) & 52 \\ 
+          \hline
+            \texttt{AllocateFromBump} & Fetching a pointer from a bump allocator & 1372 \\ 
+          \hline
+            \texttt{AllocateFromBumpWithRuntimeInit} & Fetching a pointer from a bump allocator with allocator initialization, if necessary & 1372 \\ 
+          \hline
+        \end{tabular}
+        \caption{Worst-case cycle times for essential methods in allocator runtime.}
+        \label{fig:apps}
+\end{figure}
+
+
+Note that the profiler, which outputs the \DWS\ and raw data on working set size 
+every allocation/deallocation in the workload, is functional but not shown here. 
+
 
 \section{Future Work}
 
