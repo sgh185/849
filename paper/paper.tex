@@ -85,7 +85,7 @@ the \textit{crux} of optimization for dynamic memory usage in FaaS workloads. Th
 outputs from this compilation pipeline include an instrumented application (\texttt{app.exe})
 and statistics about \DWS\ (total size for all dynamic \ALLS).
 
-\subsection{Profiler}
+\subsection{Profiler} \label{prof}
 The profiler has the goal of understanding information about dynamic memory \ALLS\ and 
 \DALLS\ during execution (for instance, the number of \ALLS\, \DWS\, common \ALL 
 sizes, etc.) as well as typical information about critical paths or the "hotness" of functions and
@@ -189,20 +189,49 @@ The allocator primarly takes the static analyses (see \ref{sa})
 as input to replace as many \ALLS\ and \DALLS\ with invocations to the allocator. 
 First, \ALLS\ with statically analyzable \SIZES\ are prime candidates to be 
 \textit{pre-allocated} because all the information needed to allocate is known at
-compile-time. These \ALLS\ are placed into a compiler-directed memory pool that is
+compile-time. These \ALLS\ are placed into a \textit{compiler-directed memory pool} that is
 allocated by the runtime in parallel to FaaS instance startup and before the entry-point function 
 of the workload, $W$, begins. The size of the pool is the sum of all statically 
 analyzable \SIZES\ of the selected \ALLS . As a result, the \ALL\ function calls are 
 replaced by load of a compiler-determined offset of the base address of the pool.
 An \ALL\ can only be selected for this transformation if it is not flagged by 
 the escapes analysis (see the third analysis in \ref{sa}) \textit{and} the compiler 
-can deduce the number of invocations of its parent function. Otherwise, the data
+can deduce the number of invocations of its parent function or of the allocation
+itself (if it belongs to a loop, for instance). Otherwise, the data
 in memory or the pointer itself may be overwritten accidentally. The latter condition
 can be alleviated with aggressive inlining and function versioning. An example of 
 this transformation is shown in Figure~\ref{fig:pool}. There are a number of 
 benefits to this approach: 1) alleviating function call overheads, 2) enabling 
 prefetching of allocation pointer address, 3) hiding allocation overhead by performing 
-it before $W$ even begins.  
+it before $W$ even begins. This can boost performance and simplifies memory management
+for FaaS instances. 
+
+Allocations that have statically analyzable size but could not be transformed to
+use the compiler-directed memory pool, can still be transformed to invoke other
+methods of the allocator. We motivate this by a simple example: a node 
+to a linked list is allocated during an irregular while loop. These \ALLS\ most
+likely belong to the same static IR instruction, but are invoked many times with
+the same \SIZE\ during the loop. Consequently, we transform these \ALLS\ to 
+invoke an allocation callback from a \textit{bump allocator} that has a block size equal to the 
+\SIZE . The callback, \texttt{AllocateFromBump(blk\_size)}, returns a pointer from the
+runtime's bump allocator dedicated to a block size of \texttt{blk\_size}. The bump allocator
+for \texttt{blk\_size} is initialized in parallel to FaaS instance startup via 
+a compiler-injected callback, since \texttt{blk\_size} is already known at compile-time.
+All bump allocators are stored by their block sizes in the runtime.
+
+Finally, \ALLS\ that may be invoked many times (as in the example), but have 
+variable-dependent \SIZES\ (i.e. the size is not a constant integer) are transformed to 
+invoke a callback, \texttt{AllocateFromBumpWithRuntimeInit(blk\_size)}, that performs 
+bump allocator initialization during runtime if the allocator for \texttt{blk\_size} is not
+yet initialized. \ALLS\ that fit the criteria for this transformation include ones
+in loops with loop-invariant and variable-dependent \SIZES .
+
+It is important to note that the profiler (see \ref{prof}) can aid these transformations.
+For instance identifying hot functions can expand the number of \ALLS\ that could
+be transformed to invoke \texttt{AllocateFromBumpWithRuntimeInit}, since those static
+\ALLS\ would be executed many times. Moreover, each bump allocator starts with a pool of 
+a default number of of entries to allocate from before expanding to more pools. Using
+profile information, the number of entries could be tuned for each specific bump allocator.
 
 \begin{figure}
     \centering
@@ -216,6 +245,7 @@ it before $W$ even begins.
 	    \label{fig:pool}
     \end{minipage}\hfill
 \end{figure}
+
 
 
 
