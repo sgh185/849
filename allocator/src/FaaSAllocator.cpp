@@ -3,11 +3,19 @@
 namespace Allocator
 {
 
+static inline uint64_t __attribute__((always_inline))
+rdtsc (void)
+{
+    uint32_t lo, hi;
+    asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
+    return lo | ((uint64_t)(hi) << 32);
+}
+
 
 /*
  * ---------- Compiler Exposed Methods ---------- 
  */
-__attribute__((constructor, used))
+__attribute__((used))
 void Constructor(void) { return; }
 
 
@@ -25,8 +33,7 @@ void Init(uint64_t PoolSize)
 
 
 void AddAllocator(
-    uint64_t BumpID,
-    uint64_t BlockSize,
+    uint64_t BumpIDBlockSize,
     uint64_t PoolSize
 )
 {
@@ -35,11 +42,13 @@ void AddAllocator(
      *
      * Add bump allocator to Allocator::TheAllocator 
      */
+    RUNTIME_DEBUG << "AddAllocator: [BumpIDBlockSize : PoolSize]: ["
+                  << BumpIDBlockSize << " : " << PoolSize << "]" << std::endl;
     Allocator::TheAllocator->AddBumpAllocator(
-        BumpID,
-        BlockSize,
+        BumpIDBlockSize,
         PoolSize
     );
+
 
     return;
 }
@@ -53,49 +62,51 @@ void *AllocateFromCompilerDirectedPool(uint64_t Offset)
      * Return a pointer that is offset @Offset into Allocator::CompilerPartitionedPool
      */
     uint64_t Address = ((uint64_t) Allocator::CompilerPartitionedPool) + Offset;
+    RUNTIME_DEBUG << "AllocateFromCompilerDirectedPool: [Address : Offset]: ["
+                  << Address << " : " << Offset << "]" << std::endl;
     return ((void *) Address);
 }
 
 
-void *AllocateWithRuntimeInit(
-    uint64_t BumpID,
-    uint64_t BlockSize
-)
+void *AllocateWithRuntimeInit(uint64_t BumpIDBlockSize)
 {
     /*
      * TOP
      * 
      * Wrapper to allocate memory w/ runtime init in Allocator::TheAllocator 
      */
-    void *Allocation = Allocator::TheAllocator->AllocateFromBumpWithRuntimeInit(BumpID, BlockSize);
+    void *Allocation = Allocator::TheAllocator->AllocateFromBumpWithRuntimeInit(BumpIDBlockSize);
+    RUNTIME_DEBUG << "AllocateWithRuntimeInit: " << BumpIDBlockSize << std::hex << ", " << Allocation << std::dec << std::endl;
     return Allocation;
 }
 
 
-void *Allocate(uint64_t BumpID)
+__attribute__((noinline, optnone))
+void *Allocate(uint64_t BumpIDBlockSize)
 {
     /*
      * TOP
      * 
      * Wrapper to allocate memory in Allocator::TheAllocator 
      */
-    void *Allocation = Allocator::TheAllocator->AllocateFromBump(BumpID);
+    void *Allocation = Allocator::TheAllocator->AllocateFromBump(BumpIDBlockSize);
+    RUNTIME_DEBUG  << "Allocate: [BumpIDBlockSize : Allocation]: ["
+                   << BumpIDBlockSize << " : " << std::hex << Allocation << std::dec << "]" << std::endl;
     return Allocation;
 }
 
 
 void Free(
-    uint64_t BumpID,
+    uint64_t BumpIDBlockSize,
     void *Pointer
 )
 {
-
     /*
      * TOP
      * 
      * Wrapper to allocate memory in Allocator::TheAllocator 
      */
-    Allocator::TheAllocator->FreeFromBump(BumpID, Pointer);
+    Allocator::TheAllocator->FreeFromBump(BumpIDBlockSize, Pointer);
     return;
 }
 
@@ -108,15 +119,15 @@ void Free(
  * ---------- Constructors ----------
  */
 BumpAllocator::BumpAllocator(
-    uint64_t BumpID,
-    uint64_t BlockSize,
+    uint64_t BumpIDBlockSize,
     uint64_t PoolSize
-) : BumpID(BumpID), BlockSize(BlockSize), PoolSize(PoolSize) 
+) : BumpIDBlockSize(BumpIDBlockSize), PoolSize(PoolSize) 
 {
     /*
      * Allocate and initialize first pool
      */
     _addPool();
+    return;
 }
 
 
@@ -135,6 +146,7 @@ void *BumpAllocator::Allocate(void)
     /*
      * Iterate over all pools
      */
+    RUNTIME_DEBUG << "Here" << std::endl;
     void *PoolToUse;
     for (auto const &[Pool, FreeList] : Pools)
     {
@@ -144,22 +156,29 @@ void *BumpAllocator::Allocate(void)
         if (FreeList.size())
         {
             PoolToUse = Pool;
+            RUNTIME_DEBUG << "BumpAllocator::Allocate: Found pool! : " << std::hex << PoolToUse << std::dec << std::endl; 
             break;
         }
     }
+
+    /*
+     * Otherwise, add another pool if not found
+     */
+    if (!PoolToUse) PoolToUse = _addPool();
 
 
     /*
      * Fetch the next free block ID
      */
     uint64_t FreeBlockID = Pools[PoolToUse].front();
+    RUNTIME_DEBUG  << "BumpAllocator::Allocate: FreeBlockID = " << FreeBlockID << std::endl;
     Pools[PoolToUse].pop();
 
 
     /*
      * Calculate the pointer for the block ID
      */
-    uint64_t Offset = BlockSize * FreeBlockID;
+    uint64_t Offset = BumpIDBlockSize * FreeBlockID;
     uint64_t PointerAddr = ((uint64_t) PoolToUse) + Offset;
     return ((void *) PointerAddr);
 }
@@ -185,7 +204,7 @@ void BumpAllocator::Free(void *Pointer)
      * Calculate the block ID
      */
     uint64_t BlockID = 
-        ((uint64_t) Pointer - (uint64_t) (Iterator->first)) / BlockSize;
+        ((uint64_t) Pointer - (uint64_t) (Iterator->first)) / BumpIDBlockSize;
 
 
     /*
@@ -201,7 +220,7 @@ void BumpAllocator::Free(void *Pointer)
 /*
  * ---------- Private Methods ----------
  */
-void BumpAllocator::_addPool(void)
+void *BumpAllocator::_addPool(void)
 {
     /*
      * TOP
@@ -220,10 +239,13 @@ void BumpAllocator::_addPool(void)
      * Record the pool and free list
      */
     Pools[Pool] = std::queue<uint64_t>();
-    for (auto ID = 0 ; ID < (PoolSize / BlockSize) ; ID++) Pools[Pool].push(ID);
+    for (auto ID = 0 ; ID < (PoolSize / BumpIDBlockSize) ; ID++) {
+        RUNTIME_DEBUG  << "BumpAllocator::_addPool: Next BlockID pushed: " << ID << std::endl;
+        Pools[Pool].push(ID);
+    }
 
 
-    return;
+    return Pool;
 }
 
 
@@ -256,7 +278,7 @@ void FaaSAllocator::Init(uint64_t PoolSize)
     void *Pool = malloc(PoolSize);
     if (!Pool) 
     {
-        RUNTIME_DEBUG << "FaaSAllocator::InitPool: Pool allocation failed!" << std::endl;
+        RUNTIME_DEBUG  << "FaaSAllocator::InitPool: Pool allocation failed!" << std::endl;
         if (RUNTIME_ASSERT_ON) abort();
         return;
     }
@@ -279,36 +301,35 @@ void FaaSAllocator::Init(uint64_t PoolSize)
 
 
 void FaaSAllocator::AddBumpAllocator(
-    uint64_t BumpID,
-    uint64_t BlockSize,
-    uint64_t PoolSize
+    uint64_t BumpIDBlockSize,
+    uint64_t NumPoolEntries
 )
 {
     /*
      * TOP
      *
      * Create a new bump allocator and record it
+     * 
+     * NOTE -- The BumpID *is the same as* the block size
+     * The bump allocators are separated by their block sizes
      */
-    BumpPools[BumpID] = 
+    BumpPools[BumpIDBlockSize] = 
         new BumpAllocator (
-            BumpID,
-            BlockSize,
-            PoolSize
+            BumpIDBlockSize,
+            NumPoolEntries * BumpIDBlockSize
         );
+
 
     return;
 }
 
-void *FaaSAllocator::AllocateFromBumpWithRuntimeInit(
-    uint64_t BumpID,
-    uint64_t BlockSize
-)
+void *FaaSAllocator::AllocateFromBumpWithRuntimeInit(uint64_t BumpIDBlockSize)
 {
     /*
      * TOP
      *
-     * Allocate from the bump allocator specified by @BumpID. This
-     * method supports the possibility of initializing the allocator
+     * Allocate from the bump allocator specified by @BumpIDBlockSize. 
+     * This method supports the possibility of initializing the allocator
      * during runtime b/c the block size was unknown at compile
      * time. Here, the block size is simply a parameter and the 
      * pool size is the default size. 
@@ -317,13 +338,12 @@ void *FaaSAllocator::AllocateFromBumpWithRuntimeInit(
     /*
      * Initialize bump allocator if necessary
      */
-    if (BumpPools.find(BumpID) == BumpPools.end())
+    if (BumpPools.find(BumpIDBlockSize) == BumpPools.end())
     {
-        BumpPools[BumpID] = 
-            new BumpAllocator (
-                BumpID,
-                BlockSize,
-                Allocator::DefaultNumPoolEntries * BlockSize
+        BumpPools[BumpIDBlockSize] = 
+            new BumpAllocator(
+                BumpIDBlockSize,
+                Allocator::DefaultNumPoolEntries * BumpIDBlockSize
             );
     }
 
@@ -331,25 +351,24 @@ void *FaaSAllocator::AllocateFromBumpWithRuntimeInit(
     /*
      * Now allocate
      */
-    void *Allocation = AllocateFromBump(BumpID);
+    void *Allocation = AllocateFromBump(BumpIDBlockSize);
     return Allocation;
 }
 
 
-void *FaaSAllocator::AllocateFromBump(
-    uint64_t BumpID
-)
+void *FaaSAllocator::AllocateFromBump(uint64_t BumpIDBlockSize)
 {
     /*
      * TOP
      *
-     * Allocate from the bump allocator specified by @BumpID.
+     * Allocate from the bump allocator specified by @BumpIDBlockSize.
      */
 
     /*
      * Fetch the bump allocator
      */
-    BumpAllocator *BA = BumpPools[BumpID];
+    BumpAllocator *BA = BumpPools[BumpIDBlockSize];
+    RUNTIME_DEBUG << "FaaSAllocator::AllocateFromBump: BA = " << std::hex << BA << std::dec << std::endl;
 
 
     /*
@@ -361,7 +380,7 @@ void *FaaSAllocator::AllocateFromBump(
 
 
 void FaaSAllocator::FreeFromBump(
-    uint64_t BumpID,
+    uint64_t BumpIDBlockSize,
     void *Pointer
 )
 {
@@ -374,7 +393,7 @@ void FaaSAllocator::FreeFromBump(
     /*
      * Fetch the bump allocator
      */
-    BumpAllocator *BA = BumpPools[BumpID];
+    BumpAllocator *BA = BumpPools[BumpIDBlockSize];
 
 
     /*
@@ -383,13 +402,6 @@ void FaaSAllocator::FreeFromBump(
     BA->Free(Pointer);
     return ;
 }
-
-
-
-
-/*
- * ---------- Private Methods ----------
- */
 
 
 }

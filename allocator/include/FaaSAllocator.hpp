@@ -27,19 +27,15 @@ void Constructor(void);
 void Init(uint64_t PoolSize);
 
 void AddAllocator(
-    uint64_t BumpID,
-    uint64_t BlockSize,
+    uint64_t BumpIDBlockSize,
     uint64_t PoolSize
 );
 
 void *AllocateFromCompilerDirectedPool(uint64_t Offset);
 
-void *Allocate(uint64_t BumpID);
+void *Allocate(uint64_t BumpIDBlockSize);
 
-void *AllocateWithRuntimeInit(
-    uint64_t BumpID,
-    uint64_t BlockSize
-);
+void *AllocateWithRuntimeInit(uint64_t BumpIDBlockSize);
 
 void Free(void *Pointer);
 
@@ -56,9 +52,8 @@ public:
      * Constructors
      */
     BumpAllocator(
-        uint64_t BumpID,
-        uint64_t BlockSize,
-        uint64_t PoolSize
+        uint64_t BumpIDBlockSize,
+        uint64_t NumPoolEntries
     );
 
 
@@ -73,10 +68,7 @@ public:
     /*
      * Public state
      */
-    uint64_t BumpID;
-
-    uint64_t BlockSize;
-
+    uint64_t BumpIDBlockSize;
     uint64_t PoolSize;
     
     std::map<
@@ -90,7 +82,7 @@ private:
     /*
      * Private methods
      */
-    void _addPool(void);
+    void *_addPool(void);
 
 };
 
@@ -115,20 +107,16 @@ public:
     void Init(uint64_t PoolSize);
 
     void AddBumpAllocator(
-        uint64_t BumpID,
-        uint64_t BlockSize,
+        uint64_t BumpIDBlockSize,
         uint64_t PoolSize
     );
 
-    void *AllocateFromBump(uint64_t BumpID);
+    void *AllocateFromBump(uint64_t BumpIDBlockSize);
 
-    void *AllocateFromBumpWithRuntimeInit(
-        uint64_t BumpID,
-        uint64_t RuntimeInit
-    );
+    void *AllocateFromBumpWithRuntimeInit(uint64_t BumpIDBlockSize);
 
     void FreeFromBump(
-        uint64_t BumpID,
+        uint64_t BumpIDBlockSize,
         void *Pointer
     );
 
@@ -139,7 +127,7 @@ private:
      * Private state
      */
     std::unordered_map<
-        uint64_t /* ID */, 
+        uint64_t /* ID/Block Size */, 
         BumpAllocator * /* Bump pools */
     > BumpPools;
 
