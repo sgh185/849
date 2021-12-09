@@ -10,10 +10,11 @@ mkdir -p ${TC}/catpass/src ;
 
 
 # Copy the sources into the toolchain for build
-cp -a ${PASS_DIR}/${DRIVER_FILE} ${TC}/catpass/ ;
-cp -a ${PASS_DIR}/include/ ${TC}/catpass/ ;
-cp -a ${PASS_DIR}/src/ ${TC}/catpass/ ;
-cp -a ${PASS_DIR}/CMakeLists.txt ${TC}/catpass/ ;
+cp -a ${PASS_DIR}/* ${TC}/catpass/ ;
+# cp -a ${PASS_DIR}/${DRIVER_FILE} ${TC}/catpass/ ;
+# cp -a ${PASS_DIR}/include/ ${TC}/catpass/ ;
+# cp -a ${PASS_DIR}/src/ ${TC}/catpass/ ;
+# cp -a ${PASS_DIR}/CMakeLists.txt ${TC}/catpass/ ;
 
 
 # Build from the toolchain
