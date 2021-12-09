@@ -9,6 +9,7 @@
 #define ANALYZE __attribute__((annotate("analyze")))  
 
 
+#define PERSIST 1
 #define DEBUG 0
 #define DEBUG_PRINT if (DEBUG) printf
 #define DEBUG_ASSERT if (DEBUG) assert
@@ -195,7 +196,7 @@ int main(void)
      * Randomly fill out graph
      */ 
     random_init_adj_matrix(NUM_VERTICES, graph); 
-
+    
 
     /*
      * Perform BFS traversal, get the result
@@ -206,6 +207,13 @@ int main(void)
             NUM_VERTICES,
             src
         );
+
+#if PERSIST
+    while (traversal_result.size) {
+        printf("%d\n", traversal_result.front->value);
+        pop(&traversal_result);
+    }
+#endif
 
 
     return 0;
