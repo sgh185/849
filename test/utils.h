@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdint.h>
+#include <stdbool.h>
 
 #define MOD 42
 
@@ -29,7 +29,10 @@ static inline void random_init_adj_matrix(
         for (int j = 0 ; j < dim ; j++) 
         {
             if (M[i][j] && M[j][i]) continue;
-            if ((lrand48() % MOD) % 2) M[i][j] = M[j][i] = 1;
+            if (true
+                && (i != j)
+                && (lrand48() % MOD) % 2)
+                M[i][j] = M[j][i] = 1;
         }
     }
 
@@ -57,6 +60,5 @@ static inline void random_init_matrix(
 
     return;
 }
-
 
 
