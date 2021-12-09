@@ -26,8 +26,10 @@ void Init(uint64_t PoolSize)
      * 
      * Build the compiler directed pool and set it to Allocator::TheAllocator
      */
+    TIME_START(Start);
     Allocator::TheAllocator = new Allocator::FaaSAllocator();
     Allocator::TheAllocator->Init(PoolSize);
+    TIME_END_AND_PRINT("Init: ", Start);
     return;
 }
 
@@ -44,10 +46,12 @@ void AddAllocator(
      */
     RUNTIME_DEBUG << "AddAllocator: [BumpIDBlockSize : PoolSize]: ["
                   << BumpIDBlockSize << " : " << PoolSize << "]" << std::endl;
+    TIME_START(Start);
     Allocator::TheAllocator->AddBumpAllocator(
         BumpIDBlockSize,
         PoolSize
     );
+    TIME_END_AND_PRINT("AddAllocator: ", Start);
 
 
     return;
@@ -61,7 +65,9 @@ void *AllocateFromCompilerDirectedPool(uint64_t Offset)
      *
      * Return a pointer that is offset @Offset into Allocator::CompilerPartitionedPool
      */
+    TIME_START(Start);
     uint64_t Address = ((uint64_t) Allocator::CompilerPartitionedPool) + Offset;
+    TIME_END_AND_PRINT("AllocateFromCompilerDirectedPool: ", Start);
     RUNTIME_DEBUG << "AllocateFromCompilerDirectedPool: [Address : Offset]: ["
                   << Address << " : " << Offset << "]" << std::endl;
     return ((void *) Address);
@@ -75,7 +81,9 @@ void *AllocateWithRuntimeInit(uint64_t BumpIDBlockSize)
      * 
      * Wrapper to allocate memory w/ runtime init in Allocator::TheAllocator 
      */
+    TIME_START(Start);
     void *Allocation = Allocator::TheAllocator->AllocateFromBumpWithRuntimeInit(BumpIDBlockSize);
+    TIME_END_AND_PRINT("AllocateWithRuntimeInit: ", Start);
     RUNTIME_DEBUG << "AllocateWithRuntimeInit: " << BumpIDBlockSize << std::hex << ", " << Allocation << std::dec << std::endl;
     return Allocation;
 }
@@ -89,7 +97,9 @@ void *Allocate(uint64_t BumpIDBlockSize)
      * 
      * Wrapper to allocate memory in Allocator::TheAllocator 
      */
+    TIME_START(Start);
     void *Allocation = Allocator::TheAllocator->AllocateFromBump(BumpIDBlockSize);
+    TIME_END_AND_PRINT("Allocate: ", Start);
     RUNTIME_DEBUG  << "Allocate: [BumpIDBlockSize : Allocation]: ["
                    << BumpIDBlockSize << " : " << std::hex << Allocation << std::dec << "]" << std::endl;
     return Allocation;
@@ -146,7 +156,6 @@ void *BumpAllocator::Allocate(void)
     /*
      * Iterate over all pools
      */
-    RUNTIME_DEBUG << "Here" << std::endl;
     void *PoolToUse;
     for (auto const &[Pool, FreeList] : Pools)
     {
