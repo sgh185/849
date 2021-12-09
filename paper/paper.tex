@@ -10,6 +10,9 @@
 \pdfpageheight=11in
 
 
+\def\crcd{compiler-runtime co-design}
+
+
 \title{Compiler and Runtime Support for Functions-as-a-Service (FaaS)}
 \date{}
 \author{Souradip Ghosh, 15-849, Fall 2021}
@@ -18,6 +21,19 @@
 \maketitle
 
 \section{Abstract}
+Functions-as-a-Service (FaaS) are rapidly growing in popularity and 
+complexity among cloud service provides as users look to take 
+advantage of cloud resources on-demand and focus on computation
+at a finer grain. FaaS instances are characteristically short-lived
+and often dominated by communication and cold-start overheads compared
+to typical monolithic applications. At the same time, FaaS instances
+are requiring more resources, especially memory, to operate. Although
+many works have approached these issues with scheduling optimizations,
+hardware accelerators, and other techniques, very few have examined
+\textit{compiler} support and \textit{\crcd} for FaaS. This paper presents 
+a \crcd\ consisting of static analyses, profiling, and a custom memory 
+allocator controlled by the compiler and runtime to better understand 
+and optimize \textit{dynamic memory usage} for small FaaS workloads.
 
 \section{Introduction/Background}
 
