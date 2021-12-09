@@ -266,7 +266,9 @@ Finally, all workloads are implemented in \texttt{C} and only use \textit{libc} 
 \texttt{free}. Although most FaaS workloads are implemented in higher-level languages, the 
 simplicity of the dynamic memory interface makes it very simple for the prototype compiler and 
 runtime to target, as all \ALLS\ and \DALLS\ are obviously explicit. Targeting higher-level 
-languages remains a future work.
+languages remains a future work. All inputs are placed on the stack as a simulation of the 
+JIT/binary translation-based solution for embedding inputs into the binary before a FaaS 
+instance executes.
 
 \section{Evaluation}
 To evaluate the prototype, four kernels (matrix multiplication, compressed-row-storage conversion,
@@ -291,23 +293,65 @@ was performed on a 28-Core Intel Xeon CPU E5-2690 v4 machine. All runs were sing
         \label{fig:apps}
 \end{figure}
 
-We assess the compiler transforms for the custom allocator both statically and dynamically. Figure X
-shows the number of eligible static \ALLS\ in the baseline IR for each kernel and the number of \ALLS\
-that were transformed to invoke the allocator. 
+We assess the compiler transforms for the custom allocator both statically and dynamically. Figure~\ref{fig:static}
+shows the number of eligible static \ALLS\ (\texttt{malloc}s column) in the baseline IR for each kernel and 
+the number of \ALLS\ that were transformed to invoke the allocator ("Transformed" column). For matrix 
+multiplication, the compiler aggressively unrolled the entire allocation loop for the result matrix
+and inlined the entire \texttt{multiply} function. Consequently, all \SIZES\ were statically analyzable
+and all \ALLS\ were transformed to fetch from the compiler-directed pool. For breadth first traversal and Huffman 
+coding, almost all \ALLS\ were transformed to allocate from the bump allocator because most \ALLS\
+were found in loops but had statically analyzable \SIZES . The \ALLS\ not transformed in
+the Huffman coding kernel were all in functions that were inlined. The inlined static \ALLS\ were
+all transformed.
+
+\begin{figure}[htp]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \small
+        \centering
+        \begin{tabular}{ | m{5cm} | m{1cm} | m{2cm} | } 
+          \hline
+            Kernel & \texttt{malloc}s & Transformed \\
+          \hline\hline
+            Matrix Multiplication & 60 & 60 \\ 
+          \hline
+            Compressed-Row-Storage (CSR) & 3 & 0 \\ 
+          \hline
+            Breadth First Traversal & 7 & 7  \\ 
+          \hline
+            Huffman Coding & 17 & 10 \\ 
+          \hline
+        \end{tabular}
+        \caption{Kernels used for evaluation.}
+        \label{fig:static}
+    \end{minipage}\hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.88\textwidth]{figs/graph.png} 
+        \caption{Overhead ratio for transformed kernels (with allocator runtime)
+        vs. baseline kernels (no transform). Ratio compares cycle counts.}  
+	    \label{fig:perf}
+    \end{minipage}\hfill
+\end{figure}
 
 Next, we evaluate the performance of the transformed binaries against the baseline binaries (i.e.
 without transformation, compiled straight from source code) for each kernel. Each kernel was 
-run 10 times via \texttt{perf stat} and the cycle counts were recorded. Figure X shows the comparative
-overhead ratio (in terms of cycles).
+run 10 times via \texttt{perf stat} and the cycle counts were recorded. Figure~\ref{perf} shows the 
+comparative overhead ratio (in terms of cycles). Here, all kernels have minimal overhead; although
+matrix multiplication, in particular, should be faster. The lack of speedups could be attributed
+to a very low-latency \texttt{malloc} coupled with extra initialization and runtime overhead. This
+is explored in Figure~\ref{cycles}. We break down the execution times for each major piece of the 
+allocator runtime and highlight worst-case observed times (also in cycles). These overheads are
+fairly substantial for the work that each method is performing. Some of the overhead can be due
+to extra function calls because wrapper methods need to be exposed to the compiler for streamlined
+instrumentation. Additionally, the data structures (\texttt{std::map}) used in the runtime and 
+initialization costs may drive up overheads. Many of these overheads could be optimized by 
+careful engineering.
 
-Finally, we break down the execution times for each major piece of the allocator runtime and
-highlight worst-case observed times (also in cycles). Figure X shows this for each essential
-method of the runtime. 
-
-\begin{figure}
+\begin{figure} [htp]
         \small
         \centering
-        \begin{tabular}{ | m{5cm} | m{9cm} | m{3cm} | } 
+        \begin{tabular}{ | m{5cm} | m{9cm} | m{1cm} | } 
           \hline
             \texttt{Init} & Initialize the global allocator (that manages bump allocators) and compiler directed pool & 20418 \\ 
           \hline
@@ -321,17 +365,20 @@ method of the runtime.
           \hline
         \end{tabular}
         \caption{Worst-case cycle times for essential methods in allocator runtime.}
-        \label{fig:apps}
+        \label{fig:cycles}
 \end{figure}
-
 
 Note that the profiler, which outputs the \DWS\ and raw data on working set size 
 every allocation/deallocation in the workload, is functional but not shown here. 
 
-
-\section{Future Work}
-
 \section{Conclusion}
+This paper shows a \crcd\ that analyzes and optimizes for dynamic memory usage in 
+small FaaS workloads. The system provides a profiler, static allocation tracking and 
+analysis, and a custom memory allocator controlled by both the compiler and runtime
+tooptimize for dynamic memory. Across a small set of kernels, the compiler is 
+successful at analyzing and transforming allocation candidates to use the custom
+allocator, and the system achieves comparable performance compared to the baseline 
+applications.
 
 \bibliographystyle{plain}
 \bibliography{sample}
