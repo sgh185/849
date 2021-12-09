@@ -26,16 +26,16 @@
 #define A_1 60
 #define A_2 30
 #define B_1 30
-#define B_2 80
+#define B_2 120
 
 AI
 int **multiply(
-    int **A,
-    int **B,
     int dim_A_1,
     int dim_A_2,
     int dim_B_1,
-    int dim_B_2
+    int dim_B_2,
+    int A[dim_A_1][dim_A_2],
+    int B[dim_B_1][dim_B_2]
 )
 {
     /*
@@ -48,7 +48,7 @@ int **multiply(
     /*
      * Allocate resulting matrix
      */ 
-    result = (int **) malloc(dim_A_1 * sizeof(int));
+    result = (int **) malloc(dim_A_1 * sizeof(int *));
     for (int i = 0 ; i < dim_A_1 ; i++)
         result[i] = (int *) malloc(dim_B_2 * sizeof(int));
 
@@ -77,20 +77,29 @@ int main(void)
 
 
     /*
+     * Randomly init matrix
+     */
+    random_init_matrix(A_1, A_2, A);
+    random_init_matrix(B_1, B_2, B);
+
+
+    /*
      * Multiply and return the resulting matrix
      */ 
     int **result = 
         multiply(
-            (int **) &A, (int **) &B,
             A_1, A_2,
-            B_1, B_2
+            B_1, B_2,
+            A, B
         );
 
 
 #if PERSIST
     for (int i = 0 ; i < A_1 ; i++)
         for (int j = 0 ; j < B_2 ; j++)
-            printf("%d ", result[i][j]); 
+            printf("i, j = %d, %d : %d\n", i, j, result[i][j]); 
+
+    printf("\n");
 #endif
 
 
