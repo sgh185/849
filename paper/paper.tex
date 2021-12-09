@@ -246,10 +246,27 @@ profile information, the number of entries could be tuned for each specific bump
     \end{minipage}\hfill
 \end{figure}
 
-
-
-
 \section{Implementation}
+The prototype compiler was built using LLVM 13.0.0. Both prototype runtimes (profiler and allocator) 
+were implemented using \texttt{C++}. Profiler-guided compiler instrumentation for the custom 
+allocator was not fully implemented and tested in this prototype due to its engineering effort.
+
+In the allocator runtime in particular, bump allocators are organized in a red-black tree (\texttt{std::map})
+where the key is the block size. Each bump allocator object allocates from an initial pool
+containing (a default) 32 entries (each entry is sized to the block size). If there are no free entries
+in the pool, another pool is allocated. Pools for a bump allocatore are also stored in a 
+red-black tree (\texttt{std::map}), mostly to aid \DALLS .
+
+Initialization for the compiler-directed memory pool and bump allocators with known block size at 
+compile-time are injected by the compiler into a runtime function marked with the attribute 
+\texttt{constructor}. Although initialization is theoretically most performant when done in parallel
+to FaaS startup, this was not implemented in the system prototype.
+
+Finally, all workloads are implemented in \texttt{C} and only use \textit{libc} \texttt{malloc} and 
+\texttt{free}. Although most FaaS workloads are implemented in higher-level languages, the 
+simplicity of the dynamic memory interface makes it very simple for the prototype compiler and 
+runtime to target, as all \ALLS\ and \DALLS\ are obviously explicit. Targeting higher-level 
+languages remains a future work.
 
 \section{Evaluation}
 
