@@ -61,8 +61,6 @@ a \crcd\ consisting of static analyses, profiling, and a custom memory
 allocator controlled by the compiler and runtime to better understand 
 and optimize \textit{dynamic memory usage} for small FaaS workloads.
 
-\section{Introduction/Background}
-
 \section{Design}
 The design of the system consists of three major components : 1) a \textit{profiler},
 2) \textit{static analyses} in the compiler, and 3) a \textit{custom memory allocator}
@@ -83,20 +81,20 @@ first pass over an example workload (\texttt{app.c}) consists of static analyses
 profiling. The second pass over \texttt{app.c} instruments the program with the custom
 allocator using the results from the static analyses (and optionally the profiler). This 
 custom allocator replaces standard dynamic \ALLS\ and \DALLS\ in \texttt{app.c}, and it is
-the \textit{crux} of optimization for dynamic memory usage in FaaS workloads. The
+the \textit{crux} of optimization for dynamic memory usage in FaaS workloads in this system. The
 outputs from this compilation pipeline include an instrumented application (\texttt{app.exe})
 and statistics about \DWS\ (total size for all dynamic \ALLS).
 
 \subsection{Profiler} \label{prof}
 The profiler has the goal of understanding information about dynamic memory \ALLS\ and 
-\DALLS\ during execution (for instance, the number of \ALLS\, \DWS\, common \ALL 
+\DALLS\ during execution (for instance, the number of \ALLS\, \DWS\, common \ALL\ 
 sizes, etc.) as well as typical information about critical paths or the "hotness" of functions and
-loops at runtime that is often use to aid optimization [?]. Using this data, the profiler can inform the compiler during 
+loops at runtime that is often use to aid optimization. Using this data, the profiler can inform the compiler during 
 instrumentation in the second pass over the application (see \ref{ca}). It can also 
 inform the user with a better estimate of memory usage for a future FaaS instance or 
 function invocation.
 
-The profiler tracks all \ALLS and \DALLS of some workload, $W$, at runtime. This is 
+The profiler tracks all \ALLS\ and \DALLS\ of some workload, $W$, at runtime. This is 
 accomplished by using the compiler to instrument all explicit dynamic memory \ALL\ and \DALL\ function 
 calls in the IR for $W$ with \textit{callback} functions to a profiler runtime.
 Two callbacks, \texttt{TrackAllocation(ptr, size)} and \texttt{TrackDeallocation(ptr)}, are 
@@ -133,7 +131,7 @@ the \crcd\ (see \ref{ca}).
 
 \subsection{Static Analyses} \label{sa}
 The system also supports static analyses of \ALLS\ and \DALLS\ in the IR for workload $W$. 
-In particular, the compiler analyzes 1) \ALL\ sizes for all \ALLS\, 2) loops to unroll 
+In particular, the compiler analyzes 1) \ALL\ sizes for all \ALLS\ , 2) loops to unroll 
 and functions to inline so that 1) is more feasible to analyze, and 3) uses of \ALL\ and 
 \DALLS . All analyses informs the compiler about analyzable static allocations. 
 
@@ -156,11 +154,11 @@ aggressive inlining (compared to a standard inliner in \texttt{-O3}). An example
 this is shown in Line 3 of Figure ~\ref{fig:sizes}. At an
 extreme, aggressive inlining can reach a point where it may be beneficial to
 inline the entry-point function of $W$. This is especially common in small 
-FaaS workloads where \ALLS\ towards the beginning of the workload havew \SIZES\
+FaaS workloads where \ALLS\ towards the beginning of the workload have \SIZES\
 dependent on the inputs. Obviously, inlining the entry-point function is not 
 possible, but we can borrow concepts from JIT compilation or binary translation
 to possibly embed the inputs into the binary itself. This process can occur
-right before the $W$ is invoked in the FaaS instance. A subset of this system's compiler
+right before $W$ is invoked in the FaaS instance. A subset of this system's compiler
 can analyze and transform $W$ as necessary. This solution is theoretical and 
 not applied in this work.
 
@@ -170,7 +168,7 @@ the \ALLS\ can be merged or replaced with one of the methods from the custom
 allocator. It is also important that the size is dependent on a loop-invariant 
 value, or else the compiler cannot affirmatively analyze multiples of the size or
 determine an appropriate unroll factor (unrolling too much without knowledge of
-the \SIZE\ may be sub-optimal). An example of this is shown in Line 8 of Figure ~\ref{fig:sizes}
+the \SIZE\ may be sub-optimal). An example of this is shown in Line 8 of Figure ~\ref{fig:sizes}.
 
 Finally, the compiler analyzes the uses of \ALLS , especially if they are used
 in explicit \texttt{store} operations in the IR. An \ALL\ pointer that is stored
@@ -179,13 +177,13 @@ to analyze its value, lifetime, and size once it leaves the scope of its parent
 function. Additionally, it is hard to manage \DALLS\ if pointer origins
 cannot be deduced, which can be common with escaped \ALL\ pointers. All escapes
 are recorded. All \ALLS\ and \DALLS\ that cannot be statically analyzed using
-memory alias analysis (i.e "must alias" conditions) or def-use chains are flagged.
+memory alias analysis (i.e "must alias" conditions) or def-use chains are conservatively flagged.
 
 \subsection{Custom Allocator} \label{ca}
 The final component of the system is a custom memory allocator, managed by both
 the compiler and runtime and designed with consideration of FaaS characteristics.
 In particular, the allocator aims to reduce raw \ALL\ and \DALL\ time, consolidate 
-\ALLS\ , and utilize compiler analysis to optimize dynamic memory overheads. 
+\ALLS\, and utilize compiler analysis to optimize dynamic memory overheads. 
 
 The allocator primarly takes the static analyses (see \ref{sa})
 as input to replace as many \ALLS\ and \DALLS\ with invocations to the allocator. If
@@ -196,7 +194,7 @@ compile-time. These \ALLS\ are placed into a \textit{compiler-directed memory po
 allocated by the runtime in parallel to FaaS instance startup and before the entry-point function 
 of the workload, $W$, begins. The size of the pool is the sum of all statically 
 analyzable \SIZES\ of the selected \ALLS . As a result, the \ALL\ function calls are 
-replaced by load of a compiler-determined offset of the base address of the pool.
+replaced by a load of a compiler-determined offset of the pool's base address.
 An \ALL\ can only be selected for this transformation if it is not flagged by 
 the escapes analysis (see the third analysis in \ref{sa}) \textit{and} the compiler 
 can deduce the number of invocations of its parent function or of the allocation
@@ -205,7 +203,7 @@ in memory or the pointer itself may be overwritten accidentally. The latter cond
 can be alleviated with aggressive inlining and function versioning. An example of 
 this transformation is shown in Figure~\ref{fig:pool}. There are a number of 
 benefits to this approach: 1) alleviating function call overheads, 2) enabling 
-prefetching of allocation pointer address, 3) hiding allocation overhead by performing 
+prefetching of allocation pointer address, and 3) hiding allocation overhead by performing 
 it before $W$ even begins. This can boost performance and simplifies memory management
 for FaaS instances. 
 
@@ -215,7 +213,7 @@ methods of the allocator. We motivate this by a simple example: a node
 to a linked list is allocated during an irregular while loop. These \ALLS\ most
 likely belong to the same static IR instruction, but are invoked many times with
 the same \SIZE\ during the loop. Consequently, we transform these \ALLS\ to 
-invoke an allocation callback from a \textit{bump allocator} that has a block size equal to the 
+invoke an allocation callback from a fast \textit{bump allocator} that has a block size equal to the 
 \SIZE . The callback, \texttt{AllocateFromBump(blk\_size)}, returns a pointer from the
 runtime's bump allocator dedicated to a block size of \texttt{blk\_size}. The bump allocator
 for \texttt{blk\_size} is initialized in parallel to FaaS instance startup via 
@@ -226,11 +224,11 @@ Finally, \ALLS\ that may be invoked many times (as in the example), but have
 variable-dependent \SIZES\ (i.e. the size is not a constant integer) are transformed to 
 invoke a callback, \texttt{AllocateFromBumpWithRuntimeInit(blk\_size)}, that performs 
 bump allocator initialization during runtime if the allocator for \texttt{blk\_size} is not
-yet initialized. \ALLS\ that fit the criteria for this transformation include ones
+yet initialized. Allocations that fit the criteria for this transformation include ones
 in loops with loop-invariant and variable-dependent \SIZES .
 
 It is important to note that the profiler (see \ref{prof}) can aid these transformations.
-For instance identifying hot functions can expand the number of \ALLS\ that could
+For instance, identifying hot functions can expand the number of \ALLS\ that could
 be transformed to invoke \texttt{AllocateFromBumpWithRuntimeInit}, since those static
 \ALLS\ would be executed many times. Moreover, each bump allocator starts with a pool of 
 a default number of of entries to allocate from before expanding to more pools. Using
@@ -242,7 +240,7 @@ profile information, the number of entries could be tuned for each specific bump
         \caption{Example allocations (top) transformed to fetch from the compiler-directed
         memory pool (bottom; here, wrapped into the function \texttt{pool\_fetch}). The 
         basic functionality of the pool is shown to the right. In context of simplified LLVM 
-        IR and \textit{libc} \texttt{malloc}}  
+        IR and \textit{libc} \texttt{malloc}.}  
 	    \label{fig:pool}
 \end{figure}
 
@@ -269,6 +267,8 @@ runtime to target, as all \ALLS\ and \DALLS\ are obviously explicit. Targeting h
 languages remains a future work. All inputs are placed on the stack as a simulation of the 
 JIT/binary translation-based solution for embedding inputs into the binary before a FaaS 
 instance executes.
+
+The prototype can be found at \href{https://github.com/sgh185/849}{https://github.com/sgh185/849}.
 
 \section{Evaluation}
 To evaluate the prototype, four kernels (matrix multiplication, compressed-row-storage conversion,
@@ -322,7 +322,7 @@ all transformed.
             Huffman Coding & 17 & 10 \\ 
           \hline
         \end{tabular}
-        \caption{Kernels used for evaluation.}
+        \caption{Number of static allocations transformed.}
         \label{fig:static}
     \end{minipage}\hfill
     \begin{minipage}{0.45\textwidth}
@@ -336,11 +336,11 @@ all transformed.
 
 Next, we evaluate the performance of the transformed binaries against the baseline binaries (i.e.
 without transformation, compiled straight from source code) for each kernel. Each kernel was 
-run 10 times via \texttt{perf stat} and the cycle counts were recorded. Figure~\ref{perf} shows the 
+run 10 times via \texttt{perf stat} and the cycle counts were recorded. Figure~\ref{fig:perf} shows the 
 comparative overhead ratio (in terms of cycles). Here, all kernels have minimal overhead; although
 matrix multiplication, in particular, should be faster. The lack of speedups could be attributed
 to a very low-latency \texttt{malloc} coupled with extra initialization and runtime overhead. This
-is explored in Figure~\ref{cycles}. We break down the execution times for each major piece of the 
+is explored in Figure~\ref{fig:cycles}. We break down the execution times for each major piece of the 
 allocator runtime and highlight worst-case observed times (also in cycles). These overheads are
 fairly substantial for the work that each method is performing. Some of the overhead can be due
 to extra function calls because wrapper methods need to be exposed to the compiler for streamlined
