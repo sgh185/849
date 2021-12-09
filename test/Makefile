@@ -1,8 +1,9 @@
 
 CC=clang
-OPT=-O3
+CXX=clang++
+OPT=-O2
 WIDTH=4
-CFLAGS=-fno-exceptions -emit-llvm -S 
+CFLAGS=-fno-exceptions -g -emit-llvm -S 
 
 ALLOC=../allocator/src/FaaSAllocator.ll
 PROF=../profiler/src/MemoryTracker.ll
@@ -17,7 +18,8 @@ BINS= \
 	 simple_malloc.bin simple_malloc.profiler.bin simple_malloc.allocator.bin \
 	 matmul.bin matmul.profiler.bin matmul.allocator.bin \
 	 csr.bin csr.profiler.bin csr.allocator.bin \
-	 bfs.bin bfs.profiler.bin bfs.allocator.bin
+	 bfs.bin bfs.profiler.bin bfs.allocator.bin \
+	 huffman_coding.bin huffman_coding.profiler.bin huffman_coding.allocator.bin
 
 
 all: $(LLS) $(BINS) 
@@ -27,6 +29,10 @@ $(ALLOC):
 
 $(PROF): 
 	cd ../profiler/src && ./build && cd - 
+
+# Separate rule, clean up later
+huffman_coding.base.ll: huffman_coding.c
+	$(CXX) $(OPT) $(CFLAGS) -std=c++17 $< -o $@
 
 %.base.ll: %.c
 	$(CC) $(OPT) $(CFLAGS) $< -o $@
@@ -40,13 +46,13 @@ $(PROF):
 	opt -load-pass-plugin $(PROJ)/passes/built_passes/lib/MemoryAnalysis849.so -passes='dynamic-analysis(allocator-transform)' -S $@ -o $@ > $@.out 2>&1
 
 %.bin: %.base.ll
-	clang++ $(OPT) -fno-exceptions $< -o $@
+	$(CXX) $(OPT) -fno-exceptions $< -o $@
 
 %.profiler.bin: %.profiler.ll
-	clang++ $(OPT) -fno-exceptions $< -o $@
+	$(CXX) $(OPT) -fno-exceptions $< -o $@
 
 %.allocator.bin: %.allocator.ll
-	clang++ $(OPT) -fno-exceptions $< -o $@
+	$(CXX) $(OPT) -fno-exceptions $< -o $@
 
 %.ll: %.c
 
