@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-clang++ -c -S -O3 -emit-llvm -std=c++17 -fno-exceptions FaaSAllocator.cpp
+clang++ -c -S -O2 -g -emit-llvm -std=c++17 -fno-exceptions FaaSAllocator.cpp
